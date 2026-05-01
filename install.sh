@@ -129,7 +129,7 @@ fd_in  = os.open("/dev/tty", os.O_RDONLY)
 fd_out = os.open("/dev/tty", os.O_WRONLY)
 write  = lambda s: os.write(fd_out, s.encode("utf-8"))
 hint = f"  \x1b[2m(default: {default})\x1b[0m" if default else ""
-write(f"  \x1b[36m?\x1b[0m \x1b[1m{label}\x1b[0m{hint}\n  \x1b[2m›\x1b[0m ")
+write(f"  \x1b[36m▸\x1b[0m \x1b[1m{label}\x1b[0m{hint}\n  \x1b[2m›\x1b[0m ")
 buf = b""
 while True:
     ch = os.read(fd_in, 1)
@@ -157,7 +157,7 @@ fd_in  = os.open("/dev/tty", os.O_RDONLY)
 fd_out = os.open("/dev/tty", os.O_WRONLY)
 write  = lambda s: os.write(fd_out, s.encode("utf-8"))
 hint = "[Y/n]" if default == "y" else "[y/N]"
-write(f"  \x1b[36m?\x1b[0m \x1b[1m{label}\x1b[0m \x1b[2m{hint}\x1b[0m\n  \x1b[2m›\x1b[0m ")
+write(f"  \x1b[36m▸\x1b[0m \x1b[1m{label}\x1b[0m \x1b[2m{hint}\x1b[0m\n  \x1b[2m›\x1b[0m ")
 buf = b""
 while True:
     ch = os.read(fd_in, 1)
@@ -359,7 +359,7 @@ EXTRACTED=$(find "$TMPDIR" -mindepth 1 -maxdepth 1 -type d -name "${REPO_NAME}-*
 spin_stop "Bundle ready" "ok"
 
 # ── 5. run notebooks 01, 02, 04, 05 ──────────────────────────────────────────
-step "Run setup notebooks  ·  01 → 02 → 04 → 05  (skipping 03)"
+step "Run setup notebooks"
 
 mkdir -p "$TMPDIR/state"
 state_set() { echo "$2" > "$TMPDIR/state/$1"; }
@@ -370,7 +370,11 @@ databricks workspace mkdirs "$PARENT_PATH" --profile "$PROFILE" >/dev/null 2>&1 
 run_notebook() {
     # run_notebook  <local_path>  <ws_path>  <params_json>  <label>
     local local_path=$1 ws_path=$2 params_json=$3 label=$4
-    printf "\n  %s%s %s%s\n" "$FG_YELLOW$BOLD" "$ARR" "$(basename "$local_path")" "$RESET"
+    # Strip "NN_" numeric prefix and ".py" suffix for cleaner display
+    local nb_name
+    nb_name=$(basename "$local_path" .py)
+    nb_name=${nb_name#[0-9][0-9]_}
+    printf "\n  %s%s %s%s\n" "$FG_YELLOW$BOLD" "$ARR" "$nb_name" "$RESET"
 
     spin_start "Uploading to $ws_path"
     databricks workspace import "$ws_path" \
@@ -529,6 +533,3 @@ echo
 printf "  %sNext steps:%s\n" "$BOLD" "$RESET"
 printf "    cd %s\n" "$DEST"
 printf "    cat CAPSTONE_TASKS.md            %s# your task list%s\n" "$DIM" "$RESET"
-printf "    cat capstone/notebooks/03_create_synced_and_staging.py   %s# T2-T5 reference%s\n" "$DIM" "$RESET"
-echo
-printf "  %sReminder:%s notebook 03 (synced + staging tables) is your task — see T2-T5.\n" "$FG_YELLOW$BOLD" "$RESET"
