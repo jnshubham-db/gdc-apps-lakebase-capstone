@@ -276,7 +276,8 @@ for wh in json.load(sys.stdin):
     n = (wh.get("name") or "?")[:40]
     s = wh.get("state") or "?"
     t = (wh.get("warehouse_type") or "")
-    print(f"{n:<40}  state={s:<10}  type={t:<6}  id={wh.get(\"id\",\"?\")}")
+    wid = wh.get("id", "?")
+    print(f"{n:<40}  state={s:<10}  type={t:<6}  id={wid}")
 ')
 WH_PICK=$(echo "$WH_LINES" | pick_index "Select a SQL warehouse" "" || true)
 [[ -z "$WH_PICK" || "$WH_PICK" == "CANCELLED" ]] && abort "Cancelled."
