@@ -494,7 +494,6 @@ done
 
 mkdir -p "$DEST"
 cp -R "$EXTRACTED/capstone-scaffold/." "$DEST/"
-cp -R "$EXTRACTED/capstone" "$DEST/capstone"
 ok "Scaffold dropped at $DEST"
 
 ENV_FILE="$DEST/app/.env"
