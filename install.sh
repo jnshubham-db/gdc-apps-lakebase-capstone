@@ -241,19 +241,44 @@ ok "$DB_VER  ·  python $PY_VER"
 
 # ── 2. profile + connection ──────────────────────────────────────────────────
 step "Connect to Databricks"
-prompt_text PROFILE "Databricks CLI profile" "${DATABRICKS_CONFIG_PROFILE:-DEFAULT}"
-spin_start "Verifying auth as profile '$PROFILE'…"
+
+# List configured profiles via the CLI; prefer arrow-key picker, fall back to text prompt.
+PROFILES_JSON=$(databricks auth profiles -o json 2>/dev/null || echo '{"profiles":[]}')
+PROFILE_LINES=$(echo "$PROFILES_JSON" | python3 -c '
+import json, sys
+data = json.load(sys.stdin)
+for p in data.get("profiles", []):
+    name  = p.get("name", "?")
+    host  = p.get("host", "?")
+    cloud = p.get("cloud", "")
+    valid = "✓" if p.get("valid") else "✗"
+    print(f"{name:<24}  {valid} {host:<60} {cloud}")
+')
+
+if [[ -n "$PROFILE_LINES" ]]; then
+    PROFILE_PICK=$(echo "$PROFILE_LINES" | pick_index "Select a Databricks CLI profile" "" || true)
+    [[ -z "$PROFILE_PICK" || "$PROFILE_PICK" == "CANCELLED" ]] && abort "Cancelled."
+    PROFILE=$(echo "$PROFILES_JSON" | python3 -c "import json,sys;print(json.load(sys.stdin)['profiles'][$PROFILE_PICK]['name'])")
+    ok "Profile: $PROFILE"
+else
+    warn "No profiles found in ~/.databrickscfg"
+    prompt_text PROFILE "Databricks CLI profile name" "${DATABRICKS_CONFIG_PROFILE:-DEFAULT}"
+fi
+
+spin_start "Verifying auth as profile '${PROFILE}'…"
 if ! ME_JSON=$(databricks current-user me --profile "$PROFILE" -o json 2>&1); then
-    spin_stop "Auth failed for profile '$PROFILE'" "fail"
+    spin_stop "Auth failed for profile '${PROFILE}'" "fail"
     abort "Run: databricks auth login --profile $PROFILE"
 fi
 USER_NAME=$(echo "$ME_JSON" | python3 -c "import json,sys;print(json.load(sys.stdin).get('userName','?'))")
-HOST=$(awk -v p="[$PROFILE]" '
-    $0==p { in_section=1; next }
-    /^\[/ { in_section=0 }
-    in_section && /^host[[:space:]]*=[[:space:]]*/ { sub(/^host[[:space:]]*=[[:space:]]*/,""); print; exit }
-' "${HOME}/.databrickscfg" 2>/dev/null || true)
-HOST=${HOST%/}
+HOST=$(echo "$PROFILES_JSON" | python3 -c "
+import json, sys
+target = '$PROFILE'
+for p in json.load(sys.stdin).get('profiles', []):
+    if p.get('name') == target:
+        print((p.get('host') or '').rstrip('/'))
+        break
+")
 spin_stop "Connected as $USER_NAME ($HOST)" "ok"
 
 # ── 3. parameter prompts ─────────────────────────────────────────────────────
@@ -323,7 +348,7 @@ prompt_confirm "Proceed?" "y" || { warn "Aborted by user."; exit 0; }
 
 # ── 4. download repo bundle ──────────────────────────────────────────────────
 step "Download installer bundle"
-spin_start "Fetching $TARBALL_URL…"
+spin_start "Fetching ${TARBALL_URL}…"
 if ! curl -fsSL "$TARBALL_URL" -o "$TMPDIR/repo.tar.gz" 2>/dev/null; then
     spin_stop "Download failed" "fail"
     abort "curl failed to fetch $TARBALL_URL"
