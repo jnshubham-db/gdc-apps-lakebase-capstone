@@ -16,16 +16,21 @@ CI/CD, and external M2M/U2M auth.
 Run this in a clean directory on your laptop:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jnshubham/gdc-apps-lakebase-capstone/main/install.py | python3
+curl -fsSL https://raw.githubusercontent.com/jnshubham/gdc-apps-lakebase-capstone/main/install.sh | bash
 ```
 
 The installer is interactive — it will prompt for a Databricks CLI profile,
 catalog name, warehouse, Lakebase config, etc. Total time: ~10–15 min.
 
+**The installer installs nothing on your machine.** It uses only what you
+already have: `bash`, `curl`, `tar`, `python3` (stdlib only — for JSON
+parsing), and the `databricks` CLI. All Python / SDK work happens server-side
+in your Databricks workspace.
+
 ### Prerequisites
 
-- Python 3.10+
-- [Databricks CLI](https://docs.databricks.com/en/dev-tools/cli/install.html) authed with at least one profile (`databricks auth login --profile <name>`)
+- [Databricks CLI](https://docs.databricks.com/en/dev-tools/cli/install.html) (≥ 0.230) authed with at least one profile (`databricks auth login --profile <name>`)
+- `python3` on `PATH` (preinstalled on macOS / Linux)
 - A **Serverless SQL Warehouse** in the workspace (the installer lets you pick from a list)
 - Workspace permissions: create catalogs, create database instances (Lakebase), create dashboards / Genie spaces, run jobs
 
