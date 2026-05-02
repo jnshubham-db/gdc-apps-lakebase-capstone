@@ -55,7 +55,7 @@ customer insights without leaving the tool. A typical session:
 ## App design & UI requirements
 
 Reviewers will judge the app on polish, update the below UI elements as per your design sense.
-
+- FastAPI for backend and React for frontend. Use uv for project management. Create venv for local development.
 - **Stack:** React 18 + Vite + TypeScript + MUI v6 (already pinned in
   `app/package.json`). Use [TanStack Query](https://tanstack.com/query)
   (React Query) for data fetching — it gives you caching, retries, and
