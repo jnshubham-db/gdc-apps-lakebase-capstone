@@ -14,6 +14,9 @@ CI/CD, and external M2M/U2M auth.
 ## Install
 
 Run this in a clean directory on your laptop:
+```
+brew upgrade databricks
+```
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/jnshubham/gdc-apps-lakebase-capstone/main/install.sh | bash
@@ -44,8 +47,6 @@ in your Databricks workspace.
 | 4 | Genie space scoped to the 5 gold tables | runs `05_create_genie_space.py` |
 | 5 | Drops the **blank scaffold** into a directory you choose | local `cp -r` + writes `app/.env` |
 
-**Notebook 03** (synced + staging tables) is intentionally **not** run — it is
-the reference for capstone tasks T2–T5, which you complete yourself.
 
 ## What you build
 

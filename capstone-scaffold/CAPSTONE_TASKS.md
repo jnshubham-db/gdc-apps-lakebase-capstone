@@ -8,19 +8,19 @@ Reps use the app to:
 
 - Browse customer accounts (list with filters: segment, LTV, churn risk)
 - Open a 360° view (profile + last 20 transactions + computed metrics)
-- Leave **notes** and override **segments** (writes go to Lakebase staging)
+- Leave **notes** and override **segments** (writes go to Lakebase staging). Merge these back to delta for analytics.
 - Ask **Genie** ad-hoc questions
 - View an embedded **AI/BI dashboard**
 - Trigger a **forward-ETL** job that promotes staging rows into gold
 
-A separate `/api/external/*` surface exposes the same data to partner
-systems via two auth flows: **M2M** (service-principal client_credentials
-→ OAuth access token) and **U2M** (user PAT). In both cases the client
-uses the Databricks SDK to obtain a Bearer token and calls the endpoint
-with `Authorization: Bearer <token>` — the Databricks Apps proxy
-validates the token and forwards the caller's identity to your handler
-via `X-Forwarded-Access-Token` (same mechanism as in-app OBO), so the
-handler is the same code as the Detail endpoint.
+A separate `/api/external/*` surface (defined in **T3a**) exposes the
+same data to partner systems via **M2M** (service-principal
+client_credentials → OAuth access token). Partners send
+`Authorization: Bearer <token>` to the Apps proxy; the proxy validates
+and forwards `X-Forwarded-Access-Token` to the handler. The handler
+reads from **Delta gold via the SQL warehouse using the caller's bearer
+(OBO)** — never falls back to Lakebase, never to the app SP — so warehouse
+RLS / audit reflect the caller's identity. 
 
 ---
 
@@ -55,26 +55,12 @@ customer insights without leaving the tool. A typical session:
 ## App design & UI requirements
 
 Reviewers will judge the app on polish, update the below UI elements as per your design sense.
-- FastAPI for backend and React for frontend. Use uv for project management. Create venv for local development.
-- **Stack:** React 18 + Vite + TypeScript + MUI v6 (already pinned in
-  `app/package.json`). Use [TanStack Query](https://tanstack.com/query)
-  (React Query) for data fetching — it gives you caching, retries, and
-  optimistic updates for free.
-- **Theme:** modern, **teal-based** primary color (e.g. `#0D9488` —
-  Tailwind teal-600 — or the MUI `teal[600]` swatch). Define this in
-  `app/frontend/src/theme.ts` and wrap the app in MUI's `<ThemeProvider>`.
-  Use a light surface palette with subtle shadows; avoid garish accent
-  colors. The app should feel like a polished SaaS product, not a demo.
-- **Layout:** persistent left sidebar nav (Customers, Genie, Dashboard,
+- **Tech Stack:** 
+  - Backend: FastAPI, psycopg, Databricks SDK, uv, Python 3.11
+  - Frontend: React, Vite, TypeScript, TanStack Query
+- **Layout:** persistent left sidebar nav (Customers, Dashboard,
   Reports), top app bar with the signed-in user's email and a workspace
-  badge, content area in the middle.
-- **Loading states:** skeleton placeholders (MUI `Skeleton`) while data
-  is fetching — never a blank screen.
-- **Empty / error states:** every list and form must handle the empty
-  case ("No customers match the filter") and the error case (toast +
-  retry button).
-- **Responsive:** sidebar collapses to a hamburger below the `md`
-  breakpoint; data grid adapts column visibility on narrow screens.
+  badge, content area in the middle. A floating chat icon on the bottom right of the page to trigger the Genie chat.
 
 ---
 
@@ -89,9 +75,9 @@ Every skill from the Apps + Lakebase training:
 - Genie Conversation API
 - Lakeview dashboard embed
 - `app.yaml` env + secrets binding + OBO scopes
-- M2M + U2M authentication for external API surfaces
+- M2M authentication for external API surface
 - Forward ETL (staging → gold)
-- DABs + **git-source** app deployment with GitHub Actions
+- DABs + **git-source** app deployment via local `bundle deploy` / `bundle run`
 - Lakebase ops: branching, PITR, query insights
 
 The repo-root **`README.md`** documents the `curl … | bash` installer
@@ -106,6 +92,69 @@ the app.
 - `databricks` CLI ≥ 0.299, `uv`, `node` ≥ 20.
 - Forked this scaffold into your own repo (private is fine) — required
   for **T8** (git-source app deployment).
+
+---
+
+## Provisioned gold tables
+
+The installer creates **5 Delta tables** in `<CAPSTONE_CATALOG>.gold`
+(catalog name is in your `app/.env`). Schemas you'll write SQL / psycopg
+against:
+
+### `customers` — 10,000 rows
+| column | type |
+|---|---|
+| `customer_id` | string (PK, e.g. `C0003600`) |
+| `first_name`, `last_name`, `email`, `phone` | string |
+| `country`, `city`, `gender` | string |
+| `age` | int |
+| `signup_date`, `last_purchase_date` | date |
+| `segment_id` | string (FK → `customer_segments`) |
+| `lifetime_value` | double |
+| `churn_score` | double (0–1) |
+| `updated_at` | timestamp |
+
+### `transactions` — ~100k rows
+| column | type |
+|---|---|
+| `transaction_id` | string (PK) |
+| `customer_id` | string (FK → `customers`) |
+| `product_id` | string (FK → `products`) |
+| `transaction_date` | date |
+| `channel` | string (`web`, `mobile`, `store`, …) |
+| `status` | string (`completed`, `pending`, `cancelled`) |
+| `amount` | double |
+
+### `products` — 200 rows
+| column | type |
+|---|---|
+| `product_id` | string (PK) |
+| `name`, `category`, `subcategory`, `brand` | string |
+| `price` | double |
+| `in_stock` | boolean |
+
+### `customer_segments` — 7 rows
+| column | type |
+|---|---|
+| `segment_id` | string (PK, `S1`–`S7`) |
+| `segment_name` | string (Champions, Loyal, At Risk, Potential Loyalists, Hibernating, …) |
+| `description`, `criteria` | string |
+
+### `support_tickets`
+| column | type |
+|---|---|
+| `ticket_id` | string (PK) |
+| `customer_id` | string (FK → `customers`) |
+| `category`, `priority`, `status`, `channel` | string |
+| `subject` | string |
+| `opened_at`, `closed_at` | date |
+| `csat_score` | int (1–5) |
+
+> **Mapping into Lakebase (T1):** `customers`, `transactions`, and
+> `products` get synced tables (`customers_synced`, …). `support_tickets`
+> and `customer_segments` stay in gold and are queried via the SQL
+> warehouse — that's why the **Metrics** endpoint takes the warehouse
+> path (it joins `transactions` × `products` × `support_tickets`).
 
 ---
 
@@ -131,10 +180,19 @@ This task wires both.
   - `customer_segment_overrides_staging` (same)
   - `customer_audit_log` (append-only)
 
+**Guidance (saves real pain):**
 
+- **App SP needs explicit grants** to read synced tables and read/write
+  staging tables — fresh PG roles have no privileges. Run a one-time grant
+  step (after the app SP has logged in to Lakebase at least once) that
+  GRANTs SELECT on synced + SELECT/INSERT/UPDATE on staging + USAGE on
+  sequences to the SP role (the role name is the SP's `client_id` UUID).
+  Add an `ALTER DEFAULT PRIVILEGES` so future syncs inherit access.
+  
 **Docs:**
 - Synced tables: https://docs.databricks.com/aws/en/oltp/projects/sync-tables
 - Lakebase Postgres connection: https://docs.databricks.com/aws/en/oltp/projects/external-apps-connect
+
 
 **Done when:**
 - [ ] All 3 synced tables show **CONTINUOUS** state in the Lakebase UI
@@ -144,24 +202,40 @@ This task wires both.
 
 ## T2 — Auth: OBO and service-principal clients
 
-**Why:** Every Lakebase / SQL / Genie call needs an identity. **OBO**
+**Why:** Every SQL warehouse / Genie call needs an identity. **OBO**
 carries the calling user's identity through the app to data services
 (so workspace-level RLS and audit work). **SP** is for app-level work
-that isn't tied to a user (background jobs, cron).
+that isn't tied to a user (Lakebase access, background jobs, cron).
 
 **Do this:** in `app/backend/auth.py`, implement:
 
 - `obo_client(request) -> WorkspaceClient` — read
   `X-Forwarded-Access-Token` from the request and build a
-  `WorkspaceClient(token=...)`
+  `WorkspaceClient(token=...)`. Used for SQL warehouse + Genie.
 - `sp_client() -> WorkspaceClient` — module-level client using the
-  app's service-principal credentials (provided by the runtime)
+  app's service-principal credentials (provided by the runtime). Used
+  for **all Lakebase access** and for the forward-ETL job trigger.
 
-In `app/backend/db.py`, also implement two psycopg connection helpers
-(`lakebase_obo(request)` and `lakebase_sp()`) that mint a fresh OAuth
-token for Lakebase auth — Lakebase Postgres tokens are short-lived
-(~1h), so re-mint on every checkout (or wrap in a pool with token
-rotation; see the **Optimizations** section).
+In `app/backend/db.py`, implement a single psycopg connection helper
+`lakebase_sp()` that mints a fresh OAuth token (Lakebase Postgres tokens
+expire ~1h, re-mint per checkout, or pool with token rotation). **Do not
+write a `lakebase_obo()` — Lakebase doesn't yet support OBO scopes**, so
+calling `generate_database_credential` with a user OBO bearer fails with
+`Provided OAuth token does not have required scopes: postgres`. All
+in-app DB reads/writes run as the SP; record the calling user from
+`X-Forwarded-Email` for the audit log.
+
+**Guidance (saves real pain):**
+
+- **Enable the OBO preview toggle on the workspace.** Workspace admin →
+  Settings → Apps → **User authorization (preview)**. Without it,
+  `user_api_scopes` PATCH calls return 200 but the field is silently
+  purged, and `X-Forwarded-Access-Token` never gets injected.
+- **Use only platform-allowed scopes.** This capstone uses exactly
+  `sql` (warehouse) and `dashboards.genie` (Genie API).
+- **First app load triggers a consent screen.** Each user must click
+  "Authorize" once for the listed scopes before `X-Forwarded-Access-Token`
+  flows. Admins can pre-grant on behalf of users.
 
 **Docs:**
 - OBO + scopes: https://docs.databricks.com/aws/en/dev-tools/databricks-apps/auth
@@ -172,7 +246,7 @@ rotation; see the **Optimizations** section).
 **Done when:**
 - [ ] A test endpoint that calls `obo_client(request).current_user.me()` returns the *calling user* (not the SP)
 - [ ] An endpoint using `sp_client()` runs as the service principal in audit logs
-- [ ] `SELECT 1` against Lakebase via `lakebase_obo()` works
+- [ ] `SELECT 1` against Lakebase via `lakebase_sp()` works
 
 ---
 
@@ -186,146 +260,112 @@ Lakebase staging writes with audit, and dual-auth external access.
 
 | Group | Method + Path | What it does | Skill |
 |---|---|---|---|
-| **Reads** | `GET /api/customers?segment=&min_ltv=&max_churn=&page=&page_size=` | Paginated list from `customers_synced` (Lakebase via OBO). Server-side pagination + filtering. | Lakebase synced reads |
-| | `GET /api/customers/{id}` | Profile from `customers_synced` + last 20 from `transactions_synced` (Lakebase via OBO). | Lakebase synced reads |
-| **Writes** (transactional + audited) | `POST /api/customers/{id}/notes` | INSERT into `customer_notes_staging` AND append a row to `customer_audit_log` in the **same transaction**. | Lakebase CRUD + audit |
+| **Reads** | `GET /api/customers?segment=&min_ltv=&max_churn=&page=&page_size=` | Paginated list from `customers_synced` (Lakebase via **app SP**). Server-side pagination + filtering. | Lakebase synced reads |
+| | `GET /api/customers/{id}` | Profile from `customers_synced` + last 20 from `transactions_synced` (Lakebase via **app SP**). | Lakebase synced reads |
+| | `GET /api/customers/{id}/metrics` | Cross-table aggregates against gold via the **SQL warehouse with OBO** (calling user's bearer). | SQL warehouse + OBO |
+| **Writes** (transactional + audited) | `POST /api/customers/{id}/notes` | INSERT into `customer_notes_staging` AND append to `customer_audit_log` in the **same transaction** (Lakebase via **app SP**, actor email taken from `X-Forwarded-Email`). | Lakebase CRUD + audit |
 | | `POST /api/customers/{id}/segment` | UPSERT into `customer_segment_overrides_staging` AND append to `customer_audit_log` in the same transaction. | Lakebase CRUD + audit |
-| **External** | `GET /api/external/customers/{id}` | Same payload as Detail, exposed for partner systems. Handler is **the same code as Detail** — reads `X-Forwarded-Access-Token` (the Apps proxy validates the Bearer for you). Test from outside the app with two Python scripts: one minting an M2M Bearer (SP client-credentials), one minting a U2M Bearer (user PAT). | M2M + U2M |
 
-### How the External endpoint authenticates
-
-The `/api/external/customers/{id}` handler is **identical in code** to
-your OBO Detail handler — both read `X-Forwarded-Access-Token` from the
-incoming request to obtain the caller's identity and act on their behalf
-against Lakebase. **What changes is who's calling and how they obtain a
-Bearer token**, not how the handler authenticates.
-
-**The Databricks Apps proxy is the auth boundary.** When any client
-sends `Authorization: Bearer <token>` to your app's URL, the Apps proxy
-validates the token and forwards the request to your FastAPI handler
-with the caller's identity in `X-Forwarded-Access-Token` (alongside
-`X-Forwarded-User`, `X-Forwarded-Email`). Your handler doesn't do its
-own bearer parsing or token introspection — it just trusts the
-forwarded headers, exactly like in-browser OBO requests.
-
-**Use the Databricks SDK to get a Bearer.** Whether the auth is PAT
-(U2M) or client_credentials (M2M), the SDK gives you back the same
-shape — a Bearer token via `WorkspaceClient.config.authenticate()`:
-
-```python
-# examples/_token.py — shared helper
-from databricks.sdk import WorkspaceClient
-
-def get_bearer(**kwargs) -> str:
-    """Mint a Bearer token via the Databricks SDK.
-
-    M2M: get_bearer(host=H, client_id=CID, client_secret=SEC)
-         (SDK runs the client_credentials OAuth grant and returns the
-         access_token; you NEVER pass the client_secret as the bearer)
-
-    U2M: get_bearer(host=H, token=PAT, auth_type='pat')
-         (SDK wraps the PAT in the Authorization header as-is)
-    """
-    w = WorkspaceClient(**kwargs)
-    headers = w.config.authenticate()
-    return headers["Authorization"].replace("Bearer ", "")
-```
-
-Provide two Python test scripts in `examples/` that use this helper to
-mint the right token and call `/api/external/customers/{id}`:
-
-- **`examples/m2m_test.py` (M2M — service principal):**
-  ```python
-  import os, requests
-  from _token import get_bearer
-
-  HOST = os.environ["DATABRICKS_HOST"].rstrip("/")     # https://<workspace>.cloud.databricks.com
-  APP  = os.environ["APP_URL"].rstrip("/")             # https://<app>.databricksapps.com
-
-  token = get_bearer(
-      host=HOST,
-      client_id=os.environ["DATABRICKS_CLIENT_ID"],
-      client_secret=os.environ["DATABRICKS_CLIENT_SECRET"],
-  )
-  r = requests.get(
-      f"{APP}/api/external/customers/C0000001",
-      headers={"Authorization": f"Bearer {token}"},
-  )
-  print(r.status_code, r.json())
-  ```
-
-- **`examples/u2m_test.py` (U2M — end user PAT):**
-  ```python
-  import os, requests
-  from _token import get_bearer
-
-  token = get_bearer(
-      host=os.environ["DATABRICKS_HOST"].rstrip("/"),
-      token=os.environ["DATABRICKS_PAT"],
-      auth_type="pat",
-  )
-  r = requests.get(
-      f"{os.environ['APP_URL'].rstrip('/')}/api/external/customers/C0000001",
-      headers={"Authorization": f"Bearer {token}"},
-  )
-  print(r.status_code, r.json())
-  ```
-
-**Hints / gotchas:**
-
-- **You cannot pass the SP's `client_secret` directly as the Bearer.**
-  The proxy will reject it. The SDK does the `client_credentials` OAuth
-  grant under the hood and gives you back the resulting OAuth
-  `access_token` — that's what goes in the `Authorization: Bearer …`
-  header.
-- **For U2M you can pass the PAT directly** (the SDK with
-  `auth_type="pat"` just wraps it as the Bearer). The user creates the
-  PAT once in their workspace user settings; treat it like a password.
-- **Both identities need app access.** In the workspace UI, open your
-  app → **Permissions** → add the SP (for M2M) and the user (for U2M)
-  with **CAN_USE**. Without this the proxy returns **403** even with a
-  valid token.
-- **Tokens are short-lived** (M2M OAuth ~1h; PATs longer but rotatable).
-  Re-mint per script run; don't cache forever.
-- **Never commit secrets.** Scripts read `DATABRICKS_HOST`, `APP_URL`,
-  `DATABRICKS_CLIENT_ID` / `DATABRICKS_CLIENT_SECRET` (M2M), and
-  `DATABRICKS_PAT` (U2M) from env vars.
-- **Capture the JSON response** from each script run for your
-  submission writeup — reviewers want to see both flows actually
-  worked end-to-end.
 
 ### React UI
 
 | Page | Endpoints used | Notes |
 |---|---|---|
-| `Customers.tsx` | List | MUI DataGrid + filter form; clicking a row navigates to detail. Server-side pagination (don't ship 10k rows). |
+| `Customers.tsx` | List | Data table + filter form; clicking a row navigates to detail. Server-side pagination (don't ship 10k rows). |
 | `CustomerDetail.tsx` | Detail, Add note, Override segment | Tabs: Profile · Activity · Notes · Segment. Fan out the per-tab fetches in parallel with `Promise.all` / `useQueries`. |
-| (External endpoint) | — | No UI; exercised from `examples/m2m_test.py` and `examples/u2m_test.py` (outputs saved into the writeup) |
 
 **Files:**
-- Backend: `app/backend/main.py`, `app/backend/db.py`, `app/backend/routers/customers.py`, `app/backend/routers/external.py`
+- Backend: `app/backend/main.py`, `app/backend/db.py`, `app/backend/routers/customers.py`
 - Frontend: `app/frontend/src/pages/Customers.tsx`, `app/frontend/src/pages/CustomerDetail.tsx`, `app/frontend/src/api/client.ts`
-- External test scripts: `examples/_token.py`, `examples/m2m_test.py`, `examples/u2m_test.py`
 
 **Docs:**
 - SQL Statement Execution: https://docs.databricks.com/aws/en/dev-tools/sql-execution-tutorial
 - Lakebase from Apps: https://docs.databricks.com/aws/en/oltp/projects/databricks-apps
 - Apps HTTP headers (`X-Forwarded-Access-Token`): https://docs.databricks.com/aws/en/dev-tools/databricks-apps/http-headers
-- M2M (SP OAuth client-credentials): https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
-- PAT (used as the U2M Bearer): https://docs.databricks.com/aws/en/dev-tools/auth/pat
-- Databricks SDK auth (`WorkspaceClient` + `auth_type`): https://databricks-sdk-py.readthedocs.io/en/latest/authentication.html
 
 **Cookbook:**
 - SQL warehouse + tables: https://apps-cookbook.dev/docs/streamlit/tables/tables_edit
 - Auth recipes: https://apps-cookbook.dev/docs/streamlit/authentication/users_get_current
 
 **Done when:**
-- [ ] All 5 endpoints return the correct shape; in-app endpoints tested via the React UI, External tested via the two Python scripts
+- [ ] All in-app endpoints return the correct shape, tested via the React UI
 - [ ] Customer list paginates server-side (page-size cap enforced; never returns all 10k rows in one response)
 - [ ] Adding a note appears in the list immediately AND a row exists in `customer_audit_log` for every write
 - [ ] Overriding a segment is idempotent (re-submitting the same value is a no-op, not a duplicate row)
-- [ ] `examples/m2m_test.py` and `examples/u2m_test.py` both return `200` + the customer JSON; stdout captured for the writeup
-- [ ] Sanity check: passing the SP's `client_secret` directly as the Bearer (no SDK / no OAuth dance) returns `401` from the proxy — proves the OAuth flow is what actually authenticates M2M
+
+---
+
+## T3a — External API: partner access via M2M
+
+**Why:** The external surface lets partner systems pull customer data
+**without going through the app UI**. This task exists separately from
+T3 because the auth boundary, data path, and grants required are
+genuinely different from in-app endpoints,
+
+### Endpoint
+
+| Method + Path | What it does | Notes |
+|---|---|---|
+| `GET /api/external/customers/{id}` | Returns the same `CustomerDetail` shape as the in-app endpoint, but reads from **Delta gold via the SQL warehouse** using the caller's bearer (OBO). Never touches Lakebase, never falls back to the app SP. | Handler reads `X-Forwarded-Access-Token`, builds a `WorkspaceClient(token=…)`, runs `statement_execution.execute_statement` against `<catalog>.gold.customers` and `<catalog>.gold.transactions`. |
+
+### Auth model — M2M only
+
+Partners authenticate as a **service principal**, run the standard
+OAuth `client_credentials` grant against `/oidc/v1/token`, and send
+the resulting OAuth bearer to the Apps proxy. The proxy validates,
+strips `Authorization`, and forwards `X-Forwarded-Access-Token` to your
+handler — same flow as in-browser OBO, just minted by the SP.
+
+
+### Steps
+
+1. **Create / pick a service principal** in the workspace. Either the
+   app's own SP (the one Databricks creates when you deploy the app) or
+   a separate "partner integration" SP — your choice.
+2. **Mint an OAuth client_secret for the SP** via
+   `databricks service-principal-secrets-proxy create <SP_ID>`. Save
+   `client_id` + `client_secret`.
+3. **Grant CAN_USE on the app to the SP** (workspace UI → App →
+   Permissions → Add → Service principal → CAN_USE). Without this the
+   proxy returns 401 even with a valid OAuth bearer.
+4. **Grant warehouse + gold-schema reads to the SP** — `CAN_USE` on the
+   warehouse, `USE CATALOG` + `USE SCHEMA` on the gold catalog/schema,
+   and `SELECT` on the underlying tables. Without these the warehouse
+   query in the handler returns `INSUFFICIENT_PERMISSIONS`.
+5. **Implement `app/backend/routers/external.py`** as described above,
+   under a new path prefix so it's clearly separate from in-app routers.
+6. **Write three Python test scripts** under `examples/`:
+   - `_token.py` — shared helper that runs the SDK's M2M flow and
+     returns the OAuth bearer.
+   - `m2m_test.py` — happy path. Reads `DATABRICKS_HOST`, `APP_URL`,
+     `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET` from env, gets
+     the bearer, calls `/api/external/customers/{id}`, expects **200**
+     and the customer JSON. Capture stdout for the writeup.
+
+### Hints / gotchas
+
+- **You cannot pass the SP's `client_secret` directly as the Bearer.**
+  The SDK does the `client_credentials` grant against `/oidc/v1/token`
+  and returns the resulting OAuth `access_token` — that's what goes in
+  the Authorization header.
+- **The SP must have CAN_USE on the app**; CAN_MANAGE doesn't replace
+  it explicitly on some workspaces.
+
+
+**Files:** `app/backend/routers/external.py`, `examples/_token.py`,
+`examples/m2m_test.py`
+
+**Docs:**
+- M2M (SP OAuth client-credentials): https://docs.databricks.com/aws/en/dev-tools/auth/oauth-m2m
+- Apps HTTP headers (`X-Forwarded-Access-Token`): https://docs.databricks.com/aws/en/dev-tools/databricks-apps/http-headers
+- Databricks SDK auth: https://databricks-sdk-py.readthedocs.io/en/latest/authentication.html
+
+**Done when:**
+- [ ] `examples/m2m_test.py` returns `200` + the customer JSON; stdout
+      captured for the writeup
+- [ ] The handler reads from gold via the warehouse using the caller's
+      bearer — confirmed by inspecting the SQL audit log (statement
+      attributed to the SP, not to the deploying user)
 
 ---
 
@@ -339,6 +379,13 @@ workspace UI. iframe embed is the supported integration pattern.
 - Add `GET /api/config` returning `{databricks_host, dashboard_id}`
 - In `Dashboard.tsx`, fetch `/api/config` and render an `<iframe>`
   pointing at `${host}/embed/dashboardsv3/${dashboard_id}`
+
+**Guidance:**
+- **Allowlist your app's domain in the workspace.** Workspace Settings →
+  Security → External Access → **Embed Dashboard** → add your app's host
+  (e.g. `customer360-<workspace>.azure.databricksapps.com`). Without this
+  the iframe is blocked by `X-Frame-Options` and the dashboard never
+  renders.
 
 **Files:** `app/backend/main.py`, `app/frontend/src/pages/Dashboard.tsx`
 
@@ -364,12 +411,16 @@ the chat UX.
   (poll until status terminal; if it has an attachment, fetch the
   attachment query result)
 
-Wire `Genie.tsx` to call these in a loop and stream the answer + tabular
-preview into the chat. Show a typing indicator while polling; cap polls
-at ~30s and surface a friendly error if the message never reaches a
-terminal state.
+Render Genie as a **floating overlay** mounted in the app shell, not a
+sidebar route — a "Ask Genie" button anchored bottom-right opens a
+compact chat panel (with an Enlarge toggle to expand to a wider view,
+and an "Open in workspace" link in the expanded header that deep-links
+to the Genie space). Call the OBO endpoints in a poll loop, show a
+typing indicator while polling, cap polls at ~30s, and surface a
+friendly error if the message never reaches a terminal state.
 
-**Files:** `app/backend/routers/genie.py`, `app/frontend/src/pages/Genie.tsx`
+**Files:** `app/backend/routers/genie.py`,
+`app/frontend/src/components/GenieWidget.tsx`
 
 **Docs:** https://docs.databricks.com/aws/en/genie/conversation-api
 
@@ -390,13 +441,22 @@ be right:
 
 - `env` — wire static + dynamic env vars: `PGHOST`, `PGDATABASE`,
   `WAREHOUSE_ID`, `DASHBOARD_ID`, `GENIE_SPACE_ID`, `PARENT_PATH`,
-  `PG_UC_CATALOG`, etc. (read these from your `app/.env`)
-- `secrets` — bind `pg_user`, `pg_password` from the secret scope
-  the installer created (`SECRET_SCOPE` in your `.env`) into env vars
-- `user_authorization` (OBO scopes) — list the OAuth scopes your app
-  must request from the calling user. At minimum:
-  `sql`, `dashboards.genie`, `dashboards`, `iam.access-control:read`.
-  **OBO will silently fail** for any service whose scope isn't listed.
+  `PG_UC_CATALOG`, etc. (read these from your `app/.env`). Bundle-injected
+  values (e.g. `FORWARD_ETL_JOB_ID`) come via `valueFrom` referencing the
+  resource name declared in `resources/app.yml`.
+- `user_authorization` (OBO scopes) — list **only**: `sql` and
+  `dashboards.genie`. The platform auto-adds `iam.current-user:read` and
+  `iam.access-control:read` as defaults. Other scopes (`dashboards`,
+  `iam.access-control:read` listed explicitly, `postgres`) are rejected
+  by the Apps API.
+
+
+**Guidance:**
+- **OBO requires the workspace preview toggle to be ON** (see T2).
+  Without it, scopes won't persist on the deployed app and
+  `X-Forwarded-Access-Token` is never injected.
+- **First load of the app prompts each user for consent** on the listed
+  scopes — they must click Authorize once before OBO carries through.
 
 **Files:** `app/app.yaml`
 
@@ -470,95 +530,97 @@ Then wire the job into the app (same surface for both patterns):
 ## T8 — Deploy via DABs as a git-source app
 
 **Why:** The production pattern for Apps is **git-source apps** declared
-via DABs and deployed by **GitHub Actions on push / release**. Manual
-`databricks apps deploy` from a laptop is fine for inner-loop dev but
-isn't reviewable, doesn't scale, and ties the app to whoever ran the
-command. **For this capstone the deployed app must be a git-source app**
-— i.e. the DABs `app` resource declares the GitHub repo + branch and
-Databricks pulls the source from there. Source-code-path-only apps that
-upload a workspace folder are explicitly **not** accepted for the
-submission.
+via DABs. The DABs `app` resource declares the GitHub repo + branch and
+Databricks pulls the source from there each `bundle run`. **For this
+capstone the deployed app must be a git-source app** — source-code-path-
+only apps that upload a workspace folder are explicitly **not** accepted.
+
+**Deploy path (run locally — no GitHub Actions required):**
+
+```
+databricks bundle validate --target prod --profile <profile>
+databricks bundle deploy   --target prod --profile <profile>
+databricks bundle run customer360 --target prod --profile <profile>
+```
+
+`bundle run` is what makes Databricks pull the latest commit from the
+declared git ref and restart the app — it is **not** a job-trigger. Run
+it locally after every `bundle deploy`. CI is intentionally out of scope
+for this capstone; the inner-loop is `git push` + the three commands
+above.
 
 **Do this:**
 
 - `databricks.yml` — bundle root with `targets: dev / prod`, project
   name, default workspace host, and `variables:` for `warehouse_id`,
-  `lakebase_instance`, `dashboard_id`, `genie_space_id`, `secret_scope`.
-- `resources/app.yml` — define the app as a **git-source app**. The
-  required fields are `git_repository.url`, `git_source.branch`, and
-  `git_source.source_code_path` (path to the app inside the repo). You
-  still keep `source_code_path` for the local bundle reference. Example
-  shape (check the [resource reference][1] for any field renames in your
-  CLI version):
-  ```yaml
-  resources:
-    apps:
-      customer360:
-        name: customer360
-        description: Customer 360 capstone app
-        source_code_path: ./app           # local path inside the bundle
-        git_repository:
-          url: https://github.com/<YOU>/<REPO>
-        git_source:
-          branch: main
-          source_code_path: app           # path inside the repo
-        resources:
-          - name: warehouse
-            sql_warehouse: { id: ${var.warehouse_id} }
-          - name: lakebase
-            postgres:
-              database: ${var.lakebase_database}
-              permission: CAN_CONNECT_AND_CREATE
-          - name: dashboard
-            dashboard: { id: ${var.dashboard_id} }
-          - name: genie_space
-            genie_space: { id: ${var.genie_space_id} }
-          - name: secrets
-            secret: { scope: ${var.secret_scope} }
-        user_api_scopes:
-          - sql
-          - dashboards.genie
-          - dashboards
-          - iam.access-control:read
-  ```
-  > Requires Databricks CLI ≥ 0.290.0 for `git_repository` /
-  > `git_source` on app resources.
+  `lakebase_instance`, `dashboard_id`, `genie_space_id`, `catalog`,
+  `pg_uc_catalog`, `git_repo_url`, `git_branch`.
+- `resources/app.yml` — define the app as a **git-source app**. Set
+  `git_repository.provider: github` + `git_repository.url`, plus
+  `git_source.branch` + `git_source.source_code_path` (path inside the
+  repo). **Do not also set `source_code_path` at the app level** — DABs
+  rejects "both git_source and source_code_path are set". Declare app
+  resources block (`sql_warehouse`, `database`, `genie_space`, the
+  forward-ETL `job`) and `user_api_scopes: [sql, dashboards.genie]`.
+  > Requires Databricks CLI ≥ 0.290.0 for `git_repository` / `git_source`
+  > on app resources.
 - `resources/jobs.yml` — define the forward-ETL job from T7.
 - `resources/lakebase.yml` — declarative synced-table specs (the YAML
-  equivalent of T1's psycopg DDL), so the synced tables are also part
-  of the bundle and not drift from manual creation.
-- `.github/workflows/deploy.yml` — on push to `main` (or on release
-  tag, see the cookbook for the recommended split):
-  1. `databricks bundle validate --target prod`
-  2. `databricks bundle deploy --target prod`
-  3. `databricks bundle run customer360 --target prod`
-     (this is what triggers the actual code pull from your git ref +
-     restarts the app)
+  equivalent of T1's psycopg DDL), so synced tables are part of the
+  bundle and don't drift from manual creation.
 
-  Auth via OAuth M2M, not PAT — set repo secrets
-  `DATABRICKS_HOST`, `DATABRICKS_CLIENT_ID`, `DATABRICKS_CLIENT_SECRET`
-  for a service principal that has access to the prod workspace.
+**Guidance for a private git repo (most common case):**
 
-[1]: https://docs.databricks.com/aws/en/dev-tools/bundles/resources#app
+- **The app's service principal must own the git credential** — the
+  workspace pulls source as the SP, not as the deploying user. The
+  `principal_id` field on `git-credentials create` binds the credential
+  to the SP in **one call**, run as your normal user profile — no SP
+  impersonation, no SP client_secret, no extra CLI profile needed:
+  1. After the first `bundle deploy`, get the app's
+     `service_principal_id` from `databricks apps get <name>`.
+  2. Register the GitHub credential bound to that SP id:
+     ```
+     databricks git-credentials create --json '{
+       "git_provider": "gitHub",
+       "git_email": "<bot-email>",
+       "personal_access_token": "<github_pat>",
+       "principal_id": <APP_SP_ID>,
+       "name": "GitHub credentials for app SP"
+     }' --profile <your-profile>
+     ```
+  3. Re-run `databricks bundle run <app-name> --target prod` — source
+     pull should now succeed.
+- If you delete and re-create the app, the `service_principal_id`
+  changes — re-register the git credential against the new SP id. The
+  CLI's "default" git credential set against your user account does
+  **not** apply to apps.
+
+**Other gotchas to dodge:**
+
+- Do not commit a top-level `app/package.json`. The Apps build runtime
+  detects `package.json` at the app root and tries `npm build`, which
+  fails because the React project lives in `app/frontend/`. Keep
+  `package.json` only inside `app/frontend/`.
+- Build the React bundle once (`bun run build` or `npm run build`) and
+  **commit `app/frontend/dist/`** so the runtime command can be a
+  simple `["uvicorn", "backend.main:app"]` with no build step.
+
 
 **Files:** `databricks.yml`, `resources/app.yml`, `resources/jobs.yml`,
-`resources/lakebase.yml`, `.github/workflows/deploy.yml`
+`resources/lakebase.yml`
 
 **Docs:**
 - DABs for Apps tutorial: https://docs.databricks.com/aws/en/dev-tools/bundles/apps-tutorial
 - DABs Apps resource reference (incl. `git_repository` / `git_source`): https://docs.databricks.com/aws/en/dev-tools/bundles/resources#app
 - Git-source apps overview: https://docs.databricks.com/aws/en/dev-tools/databricks-apps/git
-- CI/CD with bundles + GitHub Actions: https://docs.databricks.com/aws/en/dev-tools/bundles/ci-cd-bundles
-
-**Cookbook:** https://apps-cookbook.dev/blog/automate-apps-deployments-dabs
 
 **Done when:**
 - [ ] `databricks bundle validate --target prod` passes
 - [ ] In the workspace UI, the deployed app's source shows the **git
       repository + branch** (not a workspace folder upload)
-- [ ] A push to `main` produces a green GHA run, and the deployed app
-      restarts on the new commit (verify the commit SHA on the app's
-      Deployments tab matches `HEAD` of `main`)
+- [ ] `databricks bundle run customer360 --target prod` pulls the
+      latest commit and the app's Deployments tab shows the matching
+      commit SHA
 
 ---
 
@@ -631,8 +693,9 @@ submission writeup.
 
 - Code-split routes with `React.lazy` + `<Suspense>` so the initial
   bundle stays small.
-- Memoize the list grid (`React.memo` + stable `key`); use the MUI
-  DataGrid's built-in virtualization (don't roll your own).
+- Memoize the list grid (`React.memo` + stable `key`); render only the
+  current page server-side (the Lakebase pagination already keeps the
+  rendered rowcount small).
 - Debounce filter inputs (~250ms) before triggering a refetch.
 - Fan-out independent fetches in parallel (`useQueries`,
   `Promise.all`) — the detail page should kick off Profile + Metrics +
@@ -672,11 +735,13 @@ submission writeup.
 ## Submission
 
 - [ ] Every task above checked
-- [ ] Repo URL with green main CI
-- [ ] Live app URL (deployed as a **git-source app** via DABs)
+- [ ] Repo URL (public is fine — see T8 for SP-bound git credential)
+- [ ] Live app URL (deployed as a **git-source app** via local
+      `databricks bundle deploy` + `bundle run`)
 - [ ] 3-min screen recording: customer list → detail (all tabs) → add
       note → override segment → genie → dashboard → run forward-ETL
-- [ ] Output from `examples/m2m_test.py` and `examples/u2m_test.py` (T3) pasted in your writeup, showing both auth flows return `200` + customer JSON
+- [ ] Output from `examples/m2m_test.py` (T3a) pasted in your writeup,
+      showing the M2M flow returns `200` + customer JSON.
 - [ ] T9 screenshots (branch + PITR, before/after p95 latency)
 - [ ] One-paragraph reflection: which sync mode you chose for each
       synced table and why, plus which optimizations you implemented
@@ -693,10 +758,10 @@ submission writeup.
 | OBO + SP authentication | T2 |
 | OAuth scopes + `user_authorization` | T6 |
 | SQL warehouse from an App | T3 (Metrics) |
-| External M2M / U2M auth | T3 (External) |
+| External M2M auth + warehouse OBO | T3a |
 | Lakeview dashboard embed | T4 |
 | Genie Conversation API | T5 |
 | Forward ETL | T7 |
-| DABs + git-source app + GitHub Actions CI/CD | T8 |
+| DABs + git-source app (local deploy/run) | T8 |
 | Lakebase branching, PITR, query perf | T9 |
 | React + FastAPI app engineering (caching, pagination, pooling, theming) | App design + Optimizations |
