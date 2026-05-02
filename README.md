@@ -19,7 +19,7 @@ brew upgrade databricks
 ```
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/jnshubham/gdc-apps-lakebase-capstone/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/jnshubham-db/gdc-apps-lakebase-capstone/main/install.sh | bash
 ```
 
 The installer is interactive — it will prompt for a Databricks CLI profile,
