@@ -61,6 +61,7 @@ Reviewers will judge the app on polish, update the below UI elements as per your
 - **Layout:** persistent left sidebar nav (Customers, Dashboard,
   Reports), top app bar with the signed-in user's email and a workspace
   badge, content area in the middle. A floating chat icon on the bottom right of the page to trigger the Genie chat.
+- **Vibe Assisatnce:** Leverage databricks ai-tools assistance like vibe, isaac, cursor, ai-dev-kit for developing the solution. Use (go/vibe)[https://go/vibe] or (go/aidevkit)[https://go/aidevkit] to install.
 
 ---
 
