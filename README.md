@@ -53,7 +53,7 @@ in your Databricks workspace.
 Everything else. Every file under `app/`, `resources/`, `lakebase/`,
 `examples/`, and `tests/` is a 0-byte stub. Open
 [`capstone-scaffold/CAPSTONE_TASKS.md`](./capstone-scaffold/CAPSTONE_TASKS.md)
-and work through tasks T1–T14 — that document is the source of truth.
+and work through tasks T1–T9 — that document is the source of truth.
 
 ## Layout
 
