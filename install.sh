@@ -2,7 +2,7 @@
 # Capstone installer — Databricks Apps + Lakebase
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/jnshubham/gdc-apps-lakebase-capstone/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/jnshubham-db/gdc-apps-lakebase-capstone/main/install.sh | bash
 #
 # Provisions: gold tables, Lakebase instance, AI/BI dashboard, Genie space.
 # Notebook 03 (synced + staging tables) is intentionally skipped — that's
@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REPO_OWNER="jnshubham"
+REPO_OWNER="jnshubham-db"
 REPO_NAME="gdc-apps-lakebase-capstone"
 REPO_BRANCH="main"
 TARBALL_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/archive/refs/heads/${REPO_BRANCH}.tar.gz"
