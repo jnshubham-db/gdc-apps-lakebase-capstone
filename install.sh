@@ -453,28 +453,41 @@ print(",".join(data.keys()))
     info "Captured: $(tr ',' ' ' < "$TMPDIR/.last_keys")"
 }
 
+build_params() {
+    # Each arg is KEY=VALUE; emits a JSON object via env-var-fed python3.
+    local env_assigns=() py_pairs=() arg key val
+    for arg in "$@"; do
+        key=${arg%%=*}
+        val=${arg#*=}
+        env_assigns+=("$key=$val")
+        py_pairs+=("$key")
+    done
+    local py='import json,os;print(json.dumps({k:os.environ[k] for k in os.environ["__KEYS__"].split(",")}))'
+    __KEYS__="$(IFS=,; echo "${py_pairs[*]}")" env "${env_assigns[@]}" python3 -c "$py"
+}
+
 run_notebook \
     "$EXTRACTED/capstone/notebooks/01_generate_gold_data.py" \
     "$PARENT_PATH/01_generate_gold_data" \
-    "$(python3 -c "import json;print(json.dumps({'catalog':'$CATALOG','schema':'$SCHEMA'}))")" \
+    "$(build_params catalog="$CATALOG" schema="$SCHEMA")" \
     "Generating gold-layer Delta tables"
 
 run_notebook \
     "$EXTRACTED/capstone/notebooks/02_create_lakebase_instance.py" \
     "$PARENT_PATH/02_create_lakebase_instance" \
-    "$(python3 -c "import json;print(json.dumps({'instance_name':'$INSTANCE_NAME','uc_catalog_name':'$UC_LB_CATALOG','capacity':'$CAPACITY','database_name':'$DB_NAME'}))")" \
+    "$(build_params instance_name="$INSTANCE_NAME" uc_catalog_name="$UC_LB_CATALOG" capacity="$CAPACITY" database_name="$DB_NAME")" \
     "Provisioning Lakebase (1-3 min)"
 
 run_notebook \
     "$EXTRACTED/capstone/notebooks/04_create_aibi_dashboard.py" \
     "$PARENT_PATH/04_create_aibi_dashboard" \
-    "$(python3 -c "import json;print(json.dumps({'catalog':'$CATALOG','schema':'$SCHEMA','warehouse_id':'$WAREHOUSE_ID','dashboard_name':'$DASHBOARD_NAME','parent_path':'$PARENT_PATH'}))")" \
+    "$(build_params catalog="$CATALOG" schema="$SCHEMA" warehouse_id="$WAREHOUSE_ID" dashboard_name="$DASHBOARD_NAME" parent_path="$PARENT_PATH")" \
     "Creating AI/BI dashboard"
 
 run_notebook \
     "$EXTRACTED/capstone/notebooks/05_create_genie_space.py" \
     "$PARENT_PATH/05_create_genie_space" \
-    "$(python3 -c "import json;print(json.dumps({'catalog':'$CATALOG','schema':'$SCHEMA','warehouse_id':'$WAREHOUSE_ID','space_title':'$SPACE_TITLE','parent_path':'$PARENT_PATH'}))")" \
+    "$(build_params catalog="$CATALOG" schema="$SCHEMA" warehouse_id="$WAREHOUSE_ID" space_title="$SPACE_TITLE" parent_path="$PARENT_PATH")" \
     "Creating Genie space"
 
 # ── 6. drop scaffold + write .env ────────────────────────────────────────────
