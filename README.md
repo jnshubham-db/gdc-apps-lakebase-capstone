@@ -36,6 +36,7 @@ in your Databricks workspace.
 - `python3` on `PATH` (preinstalled on macOS / Linux)
 - A **Serverless SQL Warehouse** in the workspace (the installer lets you pick from a list)
 - Workspace permissions: create catalogs, create database instances (Lakebase), create dashboards / Genie spaces, run jobs
+- One FEVM workspace, request using go/fevm, recommended to use azure stable workspace.
 
 ## What the installer does
 
@@ -54,6 +55,8 @@ Everything else. Every file under `app/`, `resources/`, `lakebase/`,
 `examples/`, and `tests/` is a 0-byte stub. Open
 [`capstone-scaffold/CAPSTONE_TASKS.md`](./capstone-scaffold/CAPSTONE_TASKS.md)
 and work through tasks T1–T9 — that document is the source of truth.
+
+For a simpler version, open [`capstone-scaffold/CAPSTONE_TASKS_STREAMLIT.md`](./capstone-scaffold/CAPSTONE_TASKS_STREAMLIT.md) for streamlit based solution.
 
 ## Layout
 
