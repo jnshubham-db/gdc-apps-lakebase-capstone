@@ -87,7 +87,18 @@ print(f"Instance ready. read_write_dns={instance.read_write_dns}")
 # Requires CREATE CATALOG on the metastore. Skip cleanly if the user lacks it
 # — federated SQL access is a *bonus*; the app can still talk to Lakebase
 # directly via psycopg2.
+#
+# NOTE: get_database_catalog() can raise PermissionDenied (e.g. "Catalog '...'
+# is not accessible in current workspace") — not NotFound — when the user lacks
+# permission and the catalog doesn't exist. Guard BOTH the GET and the CREATE so
+# this bonus step never crashes the notebook before Section 3 / the exit below.
 from databricks.sdk.errors import PermissionDenied, NotFound as _NotFound
+
+def _skip_uc_catalog(reason: str) -> None:
+    print(f"SKIP UC catalog registration — {reason}")
+    print("(Federated SQL queries from Delta to Lakebase will be unavailable; "
+          "the rest of the capstone still works.)")
+
 try:
     cat = w.database.get_database_catalog(name=UC_CATALOG)
     print(f"Reusing UC catalog: {UC_CATALOG}")
@@ -103,9 +114,10 @@ except _NotFound:
         )
         print(f"Created UC catalog: {UC_CATALOG}")
     except PermissionDenied as e:
-        print(f"SKIP UC catalog creation — no CREATE CATALOG on metastore: {e}")
-        print("(Federated SQL queries from Delta to Lakebase will be unavailable; "
-              "the rest of the capstone still works.)")
+        _skip_uc_catalog(f"no CREATE CATALOG on metastore: {e}")
+except PermissionDenied as e:
+    # GET itself was rejected (catalog not accessible in this workspace).
+    _skip_uc_catalog(f"catalog not accessible in current workspace: {e}")
 
 # COMMAND ----------
 
