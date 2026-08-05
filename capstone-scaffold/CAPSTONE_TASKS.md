@@ -736,17 +736,10 @@ submission writeup.
 ## Submission
 
 - [ ] Every task above checked
-- [ ] Repo URL (public is fine — see T8 for SP-bound git credential)
+- [ ] Repo URL
 - [ ] Live app URL (deployed as a **git-source app** via local
       `databricks bundle deploy` + `bundle run`)
-- [ ] 3-min screen recording: customer list → detail (all tabs) → add
-      note → override segment → genie → dashboard → run forward-ETL
-- [ ] Output from `examples/m2m_test.py` (T3a) pasted in your writeup,
-      showing the M2M flow returns `200` + customer JSON.
-- [ ] T9 screenshots (branch + PITR, before/after p95 latency)
-- [ ] One-paragraph reflection: which sync mode you chose for each
-      synced table and why, plus which optimizations you implemented
-      and which you'd add next
+- [ ] Submit the google form shared
 
 ## Skills coverage map
 
