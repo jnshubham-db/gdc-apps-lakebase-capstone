@@ -41,8 +41,10 @@ def sp_client() -> WorkspaceClient:
     """
     global _sp
     if _sp is None:
-        _sp = WorkspaceClient() if deployed() else WorkspaceClient(
-            profile=load_env()["DATABRICKS_PROFILE"]
+        _sp = (
+            WorkspaceClient()
+            if deployed()
+            else WorkspaceClient(profile=load_env()["DATABRICKS_PROFILE"])
         )
     return _sp
 

@@ -85,9 +85,9 @@ def _get_pool() -> ConnectionPool:
 def lakebase_sp() -> Iterator[psycopg.Connection]:
     """Yield a pooled Lakebase connection acting as the service principal.
 
-        with lakebase_sp() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT 1")
+    with lakebase_sp() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1")
     """
     with _get_pool().connection() as conn:
         yield conn
