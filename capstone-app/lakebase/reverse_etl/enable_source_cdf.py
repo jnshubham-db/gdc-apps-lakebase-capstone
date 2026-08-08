@@ -10,9 +10,8 @@ property when already set is a no-op.
 
 from __future__ import annotations
 
-from databricks.sdk import WorkspaceClient
-
 from _common import load_env
+from databricks.sdk import WorkspaceClient
 
 SOURCES = ["customers", "transactions", "products"]
 

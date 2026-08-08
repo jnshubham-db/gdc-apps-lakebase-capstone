@@ -98,7 +98,9 @@ def main() -> None:
         print(f"  [{'ok' if name in present else 'MISSING'}] public.{name}")
     missing = EXPECTED - present
     if missing:
-        raise SystemExit(f"Staging tables missing after DDL: {', '.join(sorted(missing))}")
+        raise SystemExit(
+            f"Staging tables missing after DDL: {', '.join(sorted(missing))}"
+        )
     print("All staging tables present.")
 
 

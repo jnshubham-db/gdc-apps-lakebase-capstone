@@ -48,9 +48,8 @@ import json
 import subprocess
 import sys
 
-from databricks.sdk import WorkspaceClient
-
 from _common import load_env
+from databricks.sdk import WorkspaceClient
 
 SYNC_SCHEMA = "public"  # UC + Postgres schema the synced tables land in
 STORAGE_SCHEMA = "pipelines"  # UC schema for sync-pipeline metadata
@@ -69,13 +68,23 @@ def _run(args: list[str]) -> subprocess.CompletedProcess:
 
 def _exists(profile: str, full_name: str) -> bool:
     r = _run(
-        ["databricks", "postgres", "get-synced-table",
-         f"synced_tables/{full_name}", "--profile", profile, "-o", "json"]
+        [
+            "databricks",
+            "postgres",
+            "get-synced-table",
+            f"synced_tables/{full_name}",
+            "--profile",
+            profile,
+            "-o",
+            "json",
+        ]
     )
     return r.returncode == 0
 
 
-def _ensure_schema(w: WorkspaceClient, warehouse_id: str, catalog: str, schema: str) -> None:
+def _ensure_schema(
+    w: WorkspaceClient, warehouse_id: str, catalog: str, schema: str
+) -> None:
     w.statement_execution.execute_statement(
         warehouse_id=warehouse_id,
         statement=f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}",
@@ -115,11 +124,23 @@ def main() -> None:
                 "storage_schema": STORAGE_SCHEMA,
             },
         }
-        print(f"  [create] {full_name}  <-  {spec['source_table_full_name']}  ({policy})")
+        print(
+            f"  [create] {full_name}  <-  {spec['source_table_full_name']}  ({policy})"
+        )
         r = _run(
-            ["databricks", "postgres", "create-synced-table", full_name,
-             "--json", json.dumps({"spec": spec}), "--profile", profile,
-             "--no-wait", "-o", "json"]
+            [
+                "databricks",
+                "postgres",
+                "create-synced-table",
+                full_name,
+                "--json",
+                json.dumps({"spec": spec}),
+                "--profile",
+                profile,
+                "--no-wait",
+                "-o",
+                "json",
+            ]
         )
         if r.returncode != 0:
             sys.exit(f"    failed: {r.stderr.strip() or r.stdout.strip()}")

@@ -25,10 +25,9 @@ from __future__ import annotations
 
 import sys
 
+from _common import connect, load_env, workspace_client
 from databricks.sdk import WorkspaceClient
 from psycopg import sql
-
-from _common import connect, load_env, workspace_client
 
 SYNCED_TABLES = ["customers_synced", "transactions_synced", "products_synced"]
 STAGING_TABLES = [
@@ -92,9 +91,9 @@ def main() -> None:
 
             # Sequence usage (BIGSERIAL audit key, and any others).
             cur.execute(
-                sql.SQL(
-                    "GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO {}"
-                ).format(role_ident)
+                sql.SQL("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO {}").format(
+                    role_ident
+                )
             )
 
             # Future synced tables (recreated by the pipeline) inherit SELECT.
