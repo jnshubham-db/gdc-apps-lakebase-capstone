@@ -29,3 +29,15 @@ def test_config_shape(client):
     body = r.json()
     assert set(body) == {"databricks_host", "dashboard_id", "genie_space_id"}
     assert body["databricks_host"].startswith("http")
+
+
+@pytest.mark.live
+def test_analytics_shape(client):
+    r = client.get("/api/dashboard/analytics")
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"segments", "products", "tickets", "churn_buckets"}
+    assert len(body["segments"]) >= 1
+    assert {"segment_name", "customers", "avg_ltv", "avg_churn"} <= set(body["segments"][0])
+    assert len(body["products"]) <= 15
+    assert all(0.0 <= b["bucket"] <= 1.0 for b in body["churn_buckets"])
