@@ -14,6 +14,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import close_pool, lakebase_sp
@@ -51,6 +52,12 @@ app = FastAPI(title="Customer 360", lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 
+@app.exception_handler(PermissionError)
+async def permission_error_handler(_: Request, exc: PermissionError):
+    # OBO header missing / consent not granted → 401, not a 500.
+    return JSONResponse(status_code=401, content={"detail": str(exc)})
+
+
 @app.middleware("http")
 async def request_id(request: Request, call_next):
     rid = request.headers.get("X-Request-Id") or str(uuid.uuid4())
@@ -61,5 +68,17 @@ async def request_id(request: Request, call_next):
 
 app.include_router(customers.router)
 
+# Serve the built SPA. Hashed assets are served from /assets; every other
+# non-API path falls back to index.html so client-side routes (e.g.
+# /customers/{id}) resolve on deep-link and refresh, not just in-app nav.
 if _STATIC_DIR.is_dir():
-    app.mount("/", StaticFiles(directory=_STATIC_DIR, html=True), name="static")
+    app.mount("/assets", StaticFiles(directory=_STATIC_DIR / "assets"), name="assets")
+
+    _INDEX = _STATIC_DIR / "index.html"
+
+    @app.get("/{full_path:path}")
+    async def spa(full_path: str):
+        candidate = _STATIC_DIR / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_INDEX)

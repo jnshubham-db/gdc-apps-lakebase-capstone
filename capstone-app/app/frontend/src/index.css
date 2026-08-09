@@ -1,0 +1,98 @@
+@import "@fontsource/saira-condensed/400.css";
+@import "@fontsource/saira-condensed/500.css";
+@import "@fontsource/saira-condensed/600.css";
+@import "@fontsource/saira-condensed/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-panel text-lum font-mono antialiased;
+    /* Matte panel: deep black with a faint top vignette + fine grain. */
+    background-image:
+      radial-gradient(130% 100% at 50% -10%, rgba(57, 255, 154, 0.04) 0%, rgba(0, 0, 0, 0) 45%),
+      var(--tw-gradient-panel, none);
+    background-attachment: fixed;
+  }
+
+  /* Fine instrument-panel grain overlay. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.035;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: rgba(57, 255, 154, 0.25);
+  }
+
+  /* Display type: condensed aviation grotesk, tracked + upper for labels. */
+  .font-display {
+    font-family: theme("fontFamily.display");
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply font-display uppercase tracking-wide text-lum;
+  }
+}
+
+@layer components {
+  /* Terse placard caption under an instrument / control. */
+  .placard {
+    @apply font-display uppercase tracking-[0.18em] text-[11px] text-muted;
+  }
+
+  /* Brushed-bezel raised surface with screw-corner feel. */
+  .bezel {
+    @apply rounded-md border border-bezel bg-face shadow-bezel;
+  }
+
+  /* Luminous numeric readout. */
+  .readout {
+    @apply font-mono tabular-nums text-lum;
+  }
+}
+
+@keyframes toast {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .text-glow-green {
+    text-shadow: 0 0 8px rgba(57, 255, 154, 0.5);
+  }
+  .text-glow-amber {
+    text-shadow: 0 0 8px rgba(255, 176, 0, 0.5);
+  }
+  .text-glow-alert {
+    text-shadow: 0 0 8px rgba(255, 59, 48, 0.55);
+  }
+}
