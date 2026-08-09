@@ -54,3 +54,20 @@ export function useOverrideSegment(id: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: customerKeys.detail(id) }),
   });
 }
+
+export function useConfig() {
+  return useQuery({
+    queryKey: ["config"] as const,
+    queryFn: () => api.getConfig(),
+    staleTime: 5 * 60_000,
+  });
+}
+
+export function useDashboardAnalytics() {
+  return useQuery({
+    queryKey: ["dashboard", "analytics"] as const,
+    queryFn: () => api.getDashboardAnalytics(),
+    staleTime: 60_000,
+    retry: 1,
+  });
+}
