@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     # Presence of the SP client id means the runtime injected creds -> deployed.
     databricks_client_id: str | None = None
 
+    # Embed / Genie ids (T4 config endpoint; genie_space_id reused by T5).
+    dashboard_id: str | None = None
+    genie_space_id: str | None = None
+
     @property
     def deployed(self) -> bool:
         """True when running on Databricks Apps (SP creds are injected)."""
