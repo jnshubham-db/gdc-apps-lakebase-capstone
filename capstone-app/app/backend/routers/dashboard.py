@@ -62,6 +62,10 @@ class DashboardAnalytics(BaseModel):
 
 
 # Slow-changing org-wide analytics — cache the whole payload for 5 min.
+# The four queries are org-wide with no per-user/row-level scoping, so a
+# single shared cache entry served across users (first-caller-wins under OBO)
+# leaks nothing — this holds only as long as the gold tables carry no
+# row-level security.
 _analytics_cache: TTLCache = TTLCache(maxsize=1, ttl=300)
 
 
@@ -128,7 +132,10 @@ async def dashboard_analytics(obo: Obo) -> DashboardAnalytics:
             ChurnBucket(bucket=float(r["bucket"]), customers=int(r["customers"])) for r in churn
         ],
     )
-    _analytics_cache["payload"] = payload
+    # Only cache when primary datasets are non-empty; if the warehouse timed out
+    # and returned [] we skip the write so the next request retries live.
+    if payload.segments and payload.products and payload.churn_buckets:
+        _analytics_cache["payload"] = payload
     return payload
 
 

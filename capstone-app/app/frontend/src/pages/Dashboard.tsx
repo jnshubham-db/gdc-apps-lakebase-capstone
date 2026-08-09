@@ -64,7 +64,8 @@ export default function Dashboard() {
       {isError && (
         <div className="bezel">
           <ErrorState
-            message="Analytics feed unavailable. On the deployed app this reads live via your workspace session; locally it needs an OBO token."
+            tone="caution"
+            message="Analytics feed unavailable. On the deployed app this reads live via your workspace session; locally it requires an OBO token (expected in local dev)."
             onRetry={() => refetch()}
           />
         </div>
