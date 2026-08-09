@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from databricks.sdk import WorkspaceClient
 
-from .config import deployed, load_env
+from .config import get_settings
 
 _ACCESS_TOKEN_HEADER = "X-Forwarded-Access-Token"
 _EMAIL_HEADER = "X-Forwarded-Email"
@@ -41,10 +41,11 @@ def sp_client() -> WorkspaceClient:
     """
     global _sp
     if _sp is None:
+        settings = get_settings()
         _sp = (
             WorkspaceClient()
-            if deployed()
-            else WorkspaceClient(profile=load_env()["DATABRICKS_PROFILE"])
+            if settings.deployed
+            else WorkspaceClient(profile=settings.databricks_profile)
         )
     return _sp
 
@@ -62,7 +63,7 @@ def obo_client(request) -> WorkspaceClient:
             f"{_ACCESS_TOKEN_HEADER} missing — enable the workspace 'User "
             "authorization' preview and complete the per-user consent."
         )
-    return WorkspaceClient(host=load_env()["DATABRICKS_HOST"], token=token)
+    return WorkspaceClient(host=get_settings().databricks_host, token=token)
 
 
 def actor_email(request) -> str:

@@ -20,7 +20,7 @@ import psycopg
 from psycopg_pool import ConnectionPool
 
 from .auth import sp_client
-from .config import deployed, load_env
+from .config import get_settings
 
 # Recycle connections well before the ~1h token TTL.
 _MAX_LIFETIME_S = 45 * 60
@@ -29,7 +29,7 @@ _pool: ConnectionPool | None = None
 
 
 def _endpoint() -> str:
-    return load_env()["LAKEBASE_ENDPOINT"]
+    return get_settings().lakebase_endpoint
 
 
 def _fresh_token() -> str:
@@ -43,9 +43,9 @@ def _pg_user() -> str:
     Deployed: the injected ``PGUSER`` (the SP's client id). Local: the
     developer identity the SP client authenticates as.
     """
-    cfg = load_env()
-    if deployed() and cfg.get("PGUSER"):
-        return cfg["PGUSER"]
+    settings = get_settings()
+    if settings.deployed and settings.pguser:
+        return settings.pguser
     return sp_client().current_user.me().user_name
 
 
@@ -62,13 +62,13 @@ def _get_pool() -> ConnectionPool:
     """Lazily build the connection pool (import must not require connectivity)."""
     global _pool
     if _pool is None:
-        cfg = load_env()
+        settings = get_settings()
         _pool = ConnectionPool(
             connection_class=_TokenConnection,
             kwargs={
-                "host": cfg["PGHOST"],
-                "port": int(cfg.get("PGPORT", "5432")),
-                "dbname": cfg["PGDATABASE"],
+                "host": settings.pghost,
+                "port": settings.pgport,
+                "dbname": settings.pgdatabase,
                 "user": _pg_user(),
                 "sslmode": "require",
             },
