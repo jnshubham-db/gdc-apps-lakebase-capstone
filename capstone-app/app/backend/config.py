@@ -46,6 +46,11 @@ class Settings(BaseSettings):
     databricks_host: str
     lakebase_endpoint: str
 
+    # Warehouse + gold catalog for the metrics endpoint (warehouse + OBO path).
+    warehouse_id: str
+    capstone_catalog: str
+    capstone_schema: str = "gold"
+
     pghost: str
     pgport: int = 5432
     pgdatabase: str

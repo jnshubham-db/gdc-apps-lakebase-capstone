@@ -46,23 +46,23 @@ def test_sp_client_has_identity():
 
 
 @pytest.mark.live
-def test_lakebase_sp_select_one():
+async def test_lakebase_sp_select_one():
     """done-when: SELECT 1 via lakebase_sp() returns 1."""
     try:
-        with lakebase_sp() as conn, conn.cursor() as cur:
-            cur.execute("SELECT 1")
-            assert cur.fetchone() == (1,)
+        async with lakebase_sp() as conn, conn.cursor() as cur:
+            await cur.execute("SELECT 1")
+            assert await cur.fetchone() == (1,)
     finally:
-        close_pool()
+        await close_pool()
 
 
 @pytest.mark.live
-def test_lakebase_sp_pool_reuse():
+async def test_lakebase_sp_pool_reuse():
     """Two sequential checkouts both work (token minted per physical conn)."""
     try:
         for _ in range(2):
-            with lakebase_sp() as conn, conn.cursor() as cur:
-                cur.execute("SELECT 42")
-                assert cur.fetchone() == (42,)
+            async with lakebase_sp() as conn, conn.cursor() as cur:
+                await cur.execute("SELECT 42")
+                assert await cur.fetchone() == (42,)
     finally:
-        close_pool()
+        await close_pool()
