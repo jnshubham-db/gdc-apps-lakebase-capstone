@@ -81,15 +81,19 @@ export function SegmentChurnChart({ data }: { data: SegmentAgg[] }) {
   );
 }
 
+const truncate = (s: string, n = 22) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
 export function TopProductsChart({ data }: { data: ProductRevenue[] }) {
+  // Horizontal bars need vertical room per row, or the category labels collide.
+  const height = Math.max(H, data.length * 30 + 40);
   return (
-    <ResponsiveContainer width="100%" height={H}>
+    <ResponsiveContainer width="100%" height={height}>
       <BarChart data={data} layout="vertical" margin={{ top: 8, right: 16, bottom: 8, left: 8 }}>
         <CartesianGrid stroke={GRID} horizontal={false} />
         <XAxis type="number" tick={AXIS} axisLine={{ stroke: GRID }} tickLine={false}
           tickFormatter={(v) => usd(v)} />
         <YAxis type="category" dataKey="product_name" tick={AXIS} axisLine={{ stroke: GRID }}
-          tickLine={false} width={140} interval={0} />
+          tickLine={false} width={170} interval={0} tickFormatter={(v) => truncate(String(v))} />
         {tip((v) => usd(v))}
         <Bar dataKey="revenue" fill={GREEN} radius={[0, 2, 2, 0]} />
       </BarChart>

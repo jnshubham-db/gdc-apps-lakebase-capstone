@@ -1,5 +1,5 @@
 import { ExternalLink, Maximize2, Minimize2, Radio, RotateCcw, Send, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 
 import { api } from "@/lib/api";
 import { useConfig } from "@/lib/queries";
@@ -11,9 +11,55 @@ const TERMINAL = new Set(["COMPLETED", "FAILED", "CANCELLED", "QUERY_RESULT_EXPI
 const POLL_MS = 1200;
 const CAP_MS = 30_000;
 
+// Human-readable labels for Genie's intermediate poll states.
+const STATUS_LABEL: Record<string, string> = {
+  SUBMITTED: "Sending…",
+  FILTERING_CONTEXT: "Reading context…",
+  ASKING_AI: "Genie is thinking…",
+  PENDING_WAREHOUSE: "Warming up the warehouse…",
+  EXECUTING_QUERY: "Running the query…",
+  FETCHING_METADATA: "Fetching results…",
+};
+
 type Turn =
   | { role: "user"; text: string }
-  | { role: "genie"; pending: boolean; text?: string; result?: GenieResult | null; error?: string };
+  | {
+      role: "genie";
+      pending: boolean;
+      status?: string;
+      text?: string;
+      result?: GenieResult | null;
+      error?: string;
+    };
+
+/** Minimal inline markdown → React nodes: **bold**, *italic*, `code`, line breaks. */
+function renderMarkdown(text: string): ReactNode {
+  return text.split("\n").map((line, li) => (
+    <span key={li}>
+      {li > 0 && <br />}
+      {line
+        .split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g)
+        .filter(Boolean)
+        .map((seg, si) => {
+          if (seg.startsWith("**") && seg.endsWith("**"))
+            return (
+              <strong key={si} className="font-semibold text-lum">
+                {seg.slice(2, -2)}
+              </strong>
+            );
+          if (seg.startsWith("*") && seg.endsWith("*"))
+            return <em key={si}>{seg.slice(1, -1)}</em>;
+          if (seg.startsWith("`") && seg.endsWith("`"))
+            return (
+              <code key={si} className="rounded-sm bg-bezel px-1 font-mono text-[0.9em] text-green">
+                {seg.slice(1, -1)}
+              </code>
+            );
+          return <span key={si}>{seg}</span>;
+        })}
+    </span>
+  ));
+}
 
 function ResultTable({ result }: { result: GenieResult }) {
   const rows = result.rows.slice(0, 10);
@@ -64,20 +110,40 @@ export default function GenieWidget() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [turns]);
 
-  const poll = useCallback(async (conv: string, mid: string) => {
-    const deadline = Date.now() + CAP_MS;
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      let msg: GenieMessageOut;
-      try {
-        msg = await api.genie.getMessage(conv, mid);
-      } catch (e) {
-        return { status: "FAILED", text: null, result: null, error: String(e) } as GenieMessageOut;
+  const poll = useCallback(
+    async (conv: string, mid: string, onStatus: (s: string) => void) => {
+      const deadline = Date.now() + CAP_MS;
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        let msg: GenieMessageOut;
+        try {
+          msg = await api.genie.getMessage(conv, mid);
+        } catch (e) {
+          return {
+            status: "FAILED",
+            text: null,
+            result: null,
+            error: String(e),
+          } as GenieMessageOut;
+        }
+        if (TERMINAL.has(msg.status)) return msg;
+        onStatus(msg.status); // surface the live phase (ASKING_AI, EXECUTING_QUERY, …)
+        if (Date.now() > deadline) return { ...msg, status: "TIMEOUT" };
+        await new Promise((r) => setTimeout(r, POLL_MS));
       }
-      if (TERMINAL.has(msg.status)) return msg;
-      if (Date.now() > deadline) return { ...msg, status: "TIMEOUT" };
-      await new Promise((r) => setTimeout(r, POLL_MS));
-    }
+    },
+    [],
+  );
+
+  const setPendingStatus = useCallback((status: string) => {
+    setTurns((t) => {
+      const next = [...t];
+      const last = next[next.length - 1];
+      if (last && last.role === "genie" && last.pending) {
+        next[next.length - 1] = { ...last, status };
+      }
+      return next;
+    });
   }, []);
 
   async function send() {
@@ -98,7 +164,7 @@ export default function GenieWidget() {
         mid = started.message_id;
         setCid(conv);
       }
-      const msg = await poll(conv, mid);
+      const msg = await poll(conv, mid, setPendingStatus);
       setTurns((t) => {
         const next = [...t];
         const noContent = !msg.text && !(msg.result && msg.result.columns.length > 0);
@@ -198,7 +264,8 @@ export default function GenieWidget() {
             <div key={i} className="mr-8">
               {t.pending ? (
                 <div className="inline-flex items-center gap-1 font-mono text-xs text-muted">
-                  <span className="animate-pulse">▍</span> Genie is thinking…
+                  <span className="animate-pulse">▍</span>{" "}
+                  {(t.status && STATUS_LABEL[t.status]) || "Genie is thinking…"}
                 </div>
               ) : t.error ? (
                 <div className="rounded-sm border border-amber/60 bg-amber/10 px-3 py-2 text-sm text-amber">
@@ -206,7 +273,7 @@ export default function GenieWidget() {
                 </div>
               ) : (
                 <div className="rounded-sm border border-bezel bg-face px-3 py-2 text-sm text-lum/90">
-                  {t.text && <p className="whitespace-pre-wrap">{t.text}</p>}
+                  {t.text && <p className="leading-relaxed">{renderMarkdown(t.text)}</p>}
                   {t.result && t.result.columns.length > 0 && <ResultTable result={t.result} />}
                 </div>
               )}
