@@ -18,7 +18,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import close_pool, lakebase_sp
-from .routers import customers, dashboard
+from .routers import customers, dashboard, genie
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 log = logging.getLogger(__name__)
@@ -68,6 +68,7 @@ async def request_id(request: Request, call_next):
 
 app.include_router(customers.router)
 app.include_router(dashboard.router)
+app.include_router(genie.router)
 
 # Serve the built SPA. Hashed assets are served from /assets; every other
 # non-API path falls back to index.html so client-side routes (e.g.
