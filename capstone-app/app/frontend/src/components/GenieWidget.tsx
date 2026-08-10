@@ -32,7 +32,7 @@ function ResultTable({ result }: { result: GenieResult }) {
         <tbody>
           {rows.map((r, i) => (
             <tr key={i}>
-              {(r as unknown[]).map((cell, j) => (
+              {r.map((cell, j) => (
                 <td key={j} className="border-b border-bezel/50 px-2 py-1 text-lum/90">
                   {cell === null ? "—" : String(cell)}
                 </td>
@@ -101,12 +101,15 @@ export default function GenieWidget() {
       const msg = await poll(conv, mid);
       setTurns((t) => {
         const next = [...t];
+        const noContent = !msg.text && !(msg.result && msg.result.columns.length > 0);
         const err =
           msg.status === "TIMEOUT"
             ? "Genie is taking too long — try again."
             : msg.status === "FAILED" || msg.error
               ? msg.error || "Genie couldn't answer that."
-              : undefined;
+              : msg.status === "CANCELLED" || msg.status === "QUERY_RESULT_EXPIRED" || noContent
+                ? "No answer returned — try rephrasing."
+                : undefined;
         next[next.length - 1] = {
           role: "genie",
           pending: false,
@@ -168,7 +171,7 @@ export default function GenieWidget() {
               <ExternalLink className="h-3.5 w-3.5" /> workspace
             </a>
           )}
-          <Button variant="ghost" size="icon" onClick={reset} aria-label="New chat">
+          <Button variant="ghost" size="icon" onClick={reset} disabled={busy} aria-label="New chat">
             <RotateCcw className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" onClick={() => setWide((w) => !w)} aria-label="Resize">
