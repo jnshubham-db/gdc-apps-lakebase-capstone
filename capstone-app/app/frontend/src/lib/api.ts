@@ -5,6 +5,9 @@ import type {
   CustomerMetrics,
   CustomerSummary,
   DashboardAnalytics,
+  GenieFollowUpOut,
+  GenieMessageOut,
+  GenieStartOut,
   Page,
 } from "./types";
 
@@ -69,4 +72,19 @@ export const api = {
   getConfig: () => request<AppConfig>("/config"),
 
   getDashboardAnalytics: () => request<DashboardAnalytics>("/dashboard/analytics"),
+
+  genie: {
+    start: (content: string) =>
+      request<GenieStartOut>("/genie/conversations", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }),
+    followUp: (cid: string, content: string) =>
+      request<GenieFollowUpOut>(`/genie/conversations/${cid}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }),
+    getMessage: (cid: string, mid: string) =>
+      request<GenieMessageOut>(`/genie/conversations/${cid}/messages/${mid}`),
+  },
 };
