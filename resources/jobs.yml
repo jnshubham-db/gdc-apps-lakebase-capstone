@@ -6,6 +6,10 @@ resources:
         - task_key: drain_staging
           notebook_task:
             notebook_path: ../capstone-app/lakebase/forward_etl/pattern_a_psycopg2/drain_staging.py
+            base_parameters:
+              catalog: ${var.catalog}
+              pghost: "ep-billowing-cake-d7ma4pcu.database.eu-central-1.cloud.databricks.com"
+              pgdatabase: "capstone_db"
           environment_key: default
       environments:
         - environment_key: default

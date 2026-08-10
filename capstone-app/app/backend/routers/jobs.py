@@ -36,7 +36,7 @@ def _state(run) -> tuple[str, str | None]:
 
 
 def _trigger(w: WorkspaceClient, job_id: str) -> RunTrigger:
-    run = w.jobs.run_now(job_id)
+    run = w.jobs.run_now(int(job_id))
     return RunTrigger(run_id=run.run_id)
 
 
@@ -54,7 +54,7 @@ def _get_run(w: WorkspaceClient, run_id: int) -> RunStatus:
 
 
 def _list_runs(w: WorkspaceClient, job_id: str) -> list[RunSummary]:
-    runs = w.jobs.list_runs(job_id=job_id, limit=10)
+    runs = w.jobs.list_runs(job_id=int(job_id), limit=10)
     out: list[RunSummary] = []
     for run in runs:
         life, result = _state(run)

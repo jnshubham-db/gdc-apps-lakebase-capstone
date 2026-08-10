@@ -19,7 +19,17 @@ import psycopg
 from databricks.sdk import WorkspaceClient
 from psycopg.rows import dict_row
 
-CATALOG = os.environ["CAPSTONE_CATALOG"]
+
+def _cfg(widget, env, default=""):
+    try:
+        return dbutils.widgets.get(widget)  # noqa: F821 - dbutils provided by Databricks runtime
+    except Exception:  # noqa: BLE001 — widget not found outside notebook runtime
+        return os.environ.get(env, default)
+
+
+CATALOG = _cfg("catalog", "CAPSTONE_CATALOG")
+PGHOST = _cfg("pghost", "PGHOST")
+PGDATABASE = _cfg("pgdatabase", "PGDATABASE")
 GOLD = f"{CATALOG}.gold"
 
 # COMMAND ----------
@@ -65,9 +75,9 @@ def lakebase_conn() -> psycopg.Connection:
     token = w.config.oauth_token().access_token
     user = w.current_user.me().user_name
     return psycopg.connect(
-        host=os.environ["PGHOST"],
+        host=PGHOST,
         port=int(os.environ.get("PGPORT", "5432")),
-        dbname=os.environ["PGDATABASE"],
+        dbname=PGDATABASE,
         user=user,
         password=token,
         sslmode="require",
@@ -108,7 +118,7 @@ def drain(conn, *, table, pk, gold_table, select_cols, merge_on, cast) -> int:
         cur.execute(
             f"UPDATE {table} SET processed = true, processed_at = NOW() "
             f"WHERE {pk} = ANY(%s)",
-            ([str(i) for i in ids],),
+            (ids,),
         )
     conn.commit()
     return len(ids)

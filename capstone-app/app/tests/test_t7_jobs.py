@@ -111,7 +111,7 @@ def test_trigger_calls_run_now_with_job_id(client_with_job):
     r = c.post("/api/jobs/run-forward-etl")
     assert r.status_code == 200, r.text
     assert r.json() == {"run_id": 777}
-    assert sp._calls["run_now"] == "12345"
+    assert sp._calls["run_now"] == 12345
 
 
 def test_get_run_maps_state(client_with_job):
@@ -131,7 +131,7 @@ def test_list_runs_maps_summary(client_with_job):
     rows = r.json()
     assert rows[0]["result_state"] == "SUCCESS"
     assert rows[0]["duration_ms"] == 1234
-    assert sp._calls["list_runs"] == ("12345", 10)
+    assert sp._calls["list_runs"] == (12345, 10)
 
 
 def test_endpoints_503_without_job_configured():
