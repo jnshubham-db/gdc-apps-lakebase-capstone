@@ -22,4 +22,7 @@ resources:
             # serverless runtime. pg8000 has nothing native to load.
             dependencies:
               - "pg8000"
-              - "databricks-sdk"
+              # Pin to the app's SDK: the serverless runtime ships an older
+              # databricks-sdk without w.postgres (the Lakebase Autoscaling
+              # API). 0.125.0 is what the app's db.py uses with endpoint=.
+              - "databricks-sdk==0.125.0"
