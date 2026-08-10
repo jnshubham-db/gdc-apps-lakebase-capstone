@@ -1,0 +1,7 @@
+import{c as s,j as t,d as i}from"./index-8sELx2c9.js";/**
+ * @license lucide-react v1.28.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const o=[["rect",{x:"2",y:"6",width:"20",height:"8",rx:"1",key:"1estib"}],["path",{d:"M17 14v7",key:"7m2elx"}],["path",{d:"M7 14v7",key:"1cm7wv"}],["path",{d:"M17 3v3",key:"1v4jwn"}],["path",{d:"M7 3v3",key:"7o6guu"}],["path",{d:"M10 14 2.3 6.3",key:"1023jk"}],["path",{d:"m14 6 7.7 7.7",key:"1s8pl2"}],["path",{d:"m8 6 8 8",key:"hl96qh"}]],c=s("construction",o);function d({title:e,note:n}){return t.jsxs("div",{children:[t.jsx("h1",{className:"mb-6 text-2xl",children:e}),t.jsx("div",{className:"bezel",children:t.jsx(i,{title:"Instrument offline",hint:n,icon:c})})]})}export{d as default};
+//# sourceMappingURL=ComingSoon-YKMdbOwN.js.map

@@ -1,0 +1,2 @@
+const e={S1:"Champions",S2:"Loyal",S3:"Potential Loyalists",S4:"New Customers",S5:"At Risk",S6:"Hibernating",S7:"Price Sensitive",S8:"About to Churn"},s=Object.keys(e);function S(t){return t?e[t]??t:"—"}export{s as S,e as a,S as s};
+//# sourceMappingURL=segments-Cw1hE9XU.js.map

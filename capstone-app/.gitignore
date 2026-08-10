@@ -5,7 +5,8 @@ __pycache__/
 .databricks/
 .DS_Store
 node_modules/
-app/backend/static/
+# built SPA is committed on the deploy branch (git-source app serves it directly)
+!app/backend/static/
 dist/
 build/
 *.log
