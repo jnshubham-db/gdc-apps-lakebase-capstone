@@ -67,7 +67,10 @@ export function Gauge({ value, label, readout, tone = "green", sub, size = 148 }
     return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 1 ${x1} ${y1}`;
   };
   const needleDeg = START + SWEEP * shown;
-  const [nx, ny] = polar(needleDeg, r - 6);
+  // Needle is an OUTER pointer: it rides just inside the arc and stops well
+  // short of center, so the dial center stays clear for the readout text.
+  const [nx, ny] = polar(needleDeg, r - 4); // tip near the rim
+  const [nbx, nby] = polar(needleDeg, r - 34); // tail — never reaches center
   const ticks = Array.from({ length: 10 }, (_, i) => START + (SWEEP * i) / 9);
 
   return (
@@ -102,18 +105,17 @@ export function Gauge({ value, label, readout, tone = "green", sub, size = 148 }
           strokeLinecap="round"
           style={{ filter: `drop-shadow(0 0 5px ${glow})` }}
         />
-        {/* needle */}
+        {/* needle — outer pointer, stops short of center (readout lives there) */}
         <line
-          x1={cx}
-          y1={cy}
+          x1={nbx}
+          y1={nby}
           x2={nx}
           y2={ny}
           stroke={stroke}
-          strokeWidth={2.5}
+          strokeWidth={3}
           strokeLinecap="round"
           style={{ filter: `drop-shadow(0 0 4px ${glow})` }}
         />
-        <circle cx={cx} cy={cy} r={4} fill="#0B0D0F" stroke={stroke} strokeWidth={1.5} />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <span
