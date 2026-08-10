@@ -108,7 +108,8 @@ resources:
       # NO app-level source_code_path — git-source apps use git_repository +
       # git_source instead; DABs rejects setting both.
       git_repository:
-        url: ${var.git_repo_url}
+        provider: gitHub                        # required; case-insensitive
+        url: ${var.git_repo_url}                 # required
       git_source:
         branch: ${var.git_branch}
         source_code_path: capstone-app/app     # path INSIDE the repo
@@ -129,7 +130,8 @@ resources:
 
 > **The exact resource sub-shapes are authoritatively validated by
 > `databricks bundle validate -t dev`.** The app-resource git-source shape is:
-> `git_repository: { url }` + `git_source: { branch, source_code_path }`, and
+> `git_repository: { provider, url }` (both required; provider case-insensitive, e.g.
+> `gitHub`) + `git_source: { branch, source_code_path }`, and
 > **do NOT also set app-level `source_code_path`** (DABs rejects "both git_source and
 > source_code_path are set"). The implementation plan MUST run `bundle validate` and
 > fix the config against its error messages before any deploy — the schema, not this
