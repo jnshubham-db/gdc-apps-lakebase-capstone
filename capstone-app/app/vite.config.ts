@@ -10,7 +10,7 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "backend/static"),
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: false,
   },
   server: {
     port: 5173,
