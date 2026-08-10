@@ -10,8 +10,8 @@ import "./index.css";
 
 const Customers = lazy(() => import("./pages/Customers"));
 const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
-const ComingSoon = lazy(() => import("./pages/ComingSoon"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Reports = lazy(() => import("./pages/Reports"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
@@ -49,7 +49,7 @@ const router = createBrowserRouter([
         path: "reports",
         element: (
           <Suspense fallback={<RouteFallback />}>
-            <ComingSoon title="Reports" note="Forward-ETL controls land in T7." />
+            <Reports />
           </Suspense>
         ),
       },
