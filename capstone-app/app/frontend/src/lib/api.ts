@@ -9,6 +9,9 @@ import type {
   GenieMessageOut,
   GenieStartOut,
   Page,
+  RunStatus,
+  RunSummary,
+  RunTrigger,
 } from "./types";
 
 export class ApiError extends Error {
@@ -86,5 +89,11 @@ export const api = {
       }),
     getMessage: (cid: string, mid: string) =>
       request<GenieMessageOut>(`/genie/conversations/${cid}/messages/${mid}`),
+  },
+
+  jobs: {
+    runForwardEtl: () => request<RunTrigger>("/jobs/run-forward-etl", { method: "POST" }),
+    getRun: (runId: number) => request<RunStatus>(`/jobs/runs/${runId}`),
+    listRuns: () => request<RunSummary[]>("/jobs/runs"),
   },
 };

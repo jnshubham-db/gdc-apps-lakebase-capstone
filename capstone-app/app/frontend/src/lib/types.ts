@@ -122,3 +122,19 @@ export interface GenieStartOut {
 export interface GenieFollowUpOut {
   message_id: string;
 }
+
+export interface RunTrigger {
+  run_id: number;
+}
+
+export interface RunSummary {
+  run_id: number;
+  state: string;
+  result_state: string | null;
+  start_time: number | null;
+  duration_ms: number | null;
+}
+
+export interface RunStatus extends RunSummary {
+  run_page_url: string | null;
+}
