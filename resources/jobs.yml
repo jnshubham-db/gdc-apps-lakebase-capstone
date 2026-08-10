@@ -16,5 +16,5 @@ resources:
           spec:
             client: "3"
             dependencies:
-              - "psycopg[binary]"
+              - "psycopg2-binary"
               - "databricks-sdk"

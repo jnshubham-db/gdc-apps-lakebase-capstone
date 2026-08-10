@@ -15,9 +15,9 @@
 
 import os
 
-import psycopg
+import psycopg2
 from databricks.sdk import WorkspaceClient
-from psycopg.rows import dict_row
+from psycopg2.extras import RealDictCursor
 
 
 def _cfg(widget, env, default=""):
@@ -69,12 +69,16 @@ CREATE TABLE IF NOT EXISTS {GOLD}.customer_segment_overrides (
 # COMMAND ----------
 
 
-def lakebase_conn() -> psycopg.Connection:
-    """psycopg connection as the job run-as identity (fresh OAuth token)."""
+def lakebase_conn():
+    """psycopg2 connection as the job run-as identity (fresh OAuth token).
+
+    psycopg2-binary is the Databricks-standard Postgres driver on serverless;
+    psycopg3's ``[binary]`` wheel SIGABRTs loading its bundled libpq there.
+    """
     w = WorkspaceClient()
     token = w.config.oauth_token().access_token
     user = w.current_user.me().user_name
-    return psycopg.connect(
+    return psycopg2.connect(
         host=PGHOST,
         port=int(os.environ.get("PGPORT", "5432")),
         dbname=PGDATABASE,
@@ -94,13 +98,15 @@ def lakebase_conn() -> psycopg.Connection:
 
 def drain(conn, *, table, pk, gold_table, select_cols, merge_on, cast) -> int:
     """Drain one staging table into its gold target. Returns rows drained."""
-    with conn.cursor(row_factory=dict_row) as cur:
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
         cur.execute(f"SELECT {select_cols} FROM {table} WHERE processed = false")
         rows = cur.fetchall()
     if not rows:
         return 0
 
-    ids = [r[pk] for r in rows]
+    # str() the ids so the flip binds text[] against a `{pk}::text` cast — works
+    # whether the driver returns the UUID pk as uuid.UUID (psycopg3) or str (psycopg2).
+    ids = [str(r[pk]) for r in rows]
     # UUID/JSON → strings so Spark can infer a clean schema.
     df = spark.createDataFrame([cast(r) for r in rows])  # noqa: F821 - spark provided by Databricks notebook runtime
     view = f"_stage_{table}"
@@ -117,7 +123,7 @@ def drain(conn, *, table, pk, gold_table, select_cols, merge_on, cast) -> int:
     with conn.cursor() as cur:
         cur.execute(
             f"UPDATE {table} SET processed = true, processed_at = NOW() "
-            f"WHERE {pk} = ANY(%s)",
+            f"WHERE {pk}::text = ANY(%s)",
             (ids,),
         )
     conn.commit()
