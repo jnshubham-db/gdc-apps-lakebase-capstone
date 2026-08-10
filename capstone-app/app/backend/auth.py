@@ -63,7 +63,11 @@ def obo_client(request) -> WorkspaceClient:
             f"{_ACCESS_TOKEN_HEADER} missing — enable the workspace 'User "
             "authorization' preview and complete the per-user consent."
         )
-    return WorkspaceClient(host=get_settings().databricks_host, token=token)
+    # auth_type="pat" pins the SDK to the OBO bearer alone. When deployed, the
+    # runtime also injects the app SP's OAuth creds (DATABRICKS_CLIENT_ID/SECRET)
+    # into the env; without this the SDK sees both a token (pat) and oauth and
+    # aborts with "more than one authorization method configured".
+    return WorkspaceClient(host=get_settings().databricks_host, token=token, auth_type="pat")
 
 
 def actor_email(request) -> str:
