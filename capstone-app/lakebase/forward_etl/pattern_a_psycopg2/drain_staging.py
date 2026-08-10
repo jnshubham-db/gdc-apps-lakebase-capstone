@@ -14,10 +14,10 @@
 # COMMAND ----------
 
 import os
+import ssl
 
-import psycopg2
+import pg8000.dbapi
 from databricks.sdk import WorkspaceClient
-from psycopg2.extras import RealDictCursor
 
 
 def _cfg(widget, env, default=""):
@@ -70,22 +70,25 @@ CREATE TABLE IF NOT EXISTS {GOLD}.customer_segment_overrides (
 
 
 def lakebase_conn():
-    """psycopg2 connection as the job run-as identity (fresh OAuth token).
+    """Lakebase connection as the job run-as identity (fresh OAuth token).
 
-    psycopg2-binary is the Databricks-standard Postgres driver on serverless;
-    psycopg3's ``[binary]`` wheel SIGABRTs loading its bundled libpq there.
+    Uses **pg8000** — a pure-Python driver with no native libraries. The
+    workspace mandates serverless compute, and both binary Postgres wheels
+    (psycopg3[binary], psycopg2-binary) SIGABRT loading their bundled libpq on
+    the serverless runtime. pg8000 has nothing to load, so it connects cleanly.
+    Lakebase requires TLS, so pass an ``ssl_context``.
     """
     w = WorkspaceClient()
     token = w.config.oauth_token().access_token
     user = w.current_user.me().user_name
-    return psycopg2.connect(
+    return pg8000.dbapi.connect(
         host=PGHOST,
         port=int(os.environ.get("PGPORT", "5432")),
-        dbname=PGDATABASE,
+        database=PGDATABASE,
         user=user,
         password=token,
-        sslmode="require",
-        connect_timeout=30,
+        ssl_context=ssl.create_default_context(),
+        timeout=30,
     )
 
 
@@ -98,9 +101,14 @@ def lakebase_conn():
 
 def drain(conn, *, table, pk, gold_table, select_cols, merge_on, cast) -> int:
     """Drain one staging table into its gold target. Returns rows drained."""
-    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+    # pg8000 cursors are not context managers — open/close explicitly.
+    cur = conn.cursor()
+    try:
         cur.execute(f"SELECT {select_cols} FROM {table} WHERE processed = false")
-        rows = cur.fetchall()
+        cols = [c[0] for c in cur.description]
+        rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    finally:
+        cur.close()
     if not rows:
         return 0
 
@@ -120,12 +128,15 @@ def drain(conn, *, table, pk, gold_table, select_cols, merge_on, cast) -> int:
     )
 
     # Flip only AFTER the MERGE committed, for the exact snapshotted id set.
-    with conn.cursor() as cur:
+    cur = conn.cursor()
+    try:
         cur.execute(
             f"UPDATE {table} SET processed = true, processed_at = NOW() "
             f"WHERE {pk}::text = ANY(%s)",
             (ids,),
         )
+    finally:
+        cur.close()
     conn.commit()
     return len(ids)
 
