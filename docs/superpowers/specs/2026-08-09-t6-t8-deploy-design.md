@@ -118,15 +118,30 @@ resources:
         - dashboards.genie
       resources:
         - name: sql-warehouse
-          sql_warehouse: { id: ${var.warehouse_id}, permission: "CAN_USE" }
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: "CAN_USE"
         - name: database
-          database:
-            instance_name: ${var.lakebase_instance}
-            database_name: "capstone_db"
+          postgres:                              # NOT the legacy `database` key
+            branch: "projects/capstone-pg/branches/production"
+            # resource id is a hashed name, NOT "capstone_db" (that's the PG db name);
+            # confirmed: db-dq3m-k807y4emil → postgres_database "capstone_db"
+            database: "projects/capstone-pg/branches/production/databases/db-dq3m-k807y4emil"
             permission: "CAN_CONNECT_AND_CREATE"
         - name: genie-space
-          # genie space resource shape confirmed at validate time
+          genie_space:
+            space_id: ${var.genie_space_id}
+            permission: "CAN_RUN"
 ```
+
+> **Resource keys (from the DABs Apps resource reference):** `sql_warehouse`
+> = `{ id, permission: CAN_USE }`; `genie_space` = `{ space_id, permission: CAN_RUN }`.
+> For Lakebase use the **`postgres`** key = `{ branch, database, permission:
+> CAN_CONNECT_AND_CREATE }` with full resource paths — NOT the legacy `database` key
+> (`instance_name`+`database_name`), which is deprecated and fails with "Database
+> instance … does not exist". The exact `database` resource-path id (`.../databases/
+> <id>`) is confirmed at validate time via
+> `databricks postgres list-databases projects/capstone-pg/branches/production`.
 
 > **The exact resource sub-shapes are authoritatively validated by
 > `databricks bundle validate -t dev`.** The app-resource git-source shape is:
@@ -135,8 +150,7 @@ resources:
 > **do NOT also set app-level `source_code_path`** (DABs rejects "both git_source and
 > source_code_path are set"). The implementation plan MUST run `bundle validate` and
 > fix the config against its error messages before any deploy — the schema, not this
-> spec, is the source of truth for exact keys (esp. the `resources:` sub-shapes for
-> sql-warehouse / database / genie-space).
+> spec, is the source of truth for exact keys.
 
 ## Deploy sequence (dev)
 
