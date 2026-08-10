@@ -1,6 +1,8 @@
 import { Activity, LayoutDashboard, Radio, Users } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import GenieWidget from "./GenieWidget";
+
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -103,6 +105,7 @@ export function AppShell() {
           <Outlet />
         </main>
       </div>
+      <GenieWidget />
     </div>
   );
 }
