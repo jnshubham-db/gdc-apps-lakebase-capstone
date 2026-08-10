@@ -10,11 +10,21 @@ resources:
               catalog: ${var.catalog}
               pghost: "ep-billowing-cake-d7ma4pcu.database.eu-central-1.cloud.databricks.com"
               pgdatabase: "capstone_db"
-          environment_key: default
-      environments:
-        - environment_key: default
-          spec:
-            client: "3"
-            dependencies:
-              - "psycopg2-binary"
-              - "databricks-sdk"
+          # Classic single-node cluster, not serverless: the serverless
+          # "client 3" runtime SIGABRTs loading the native libs of binary
+          # Postgres wheels (both psycopg3[binary] and psycopg2-binary abort at
+          # import). On a standard DBR cluster psycopg2-binary loads cleanly.
+          new_cluster:
+            spark_version: "15.4.x-scala2.12"
+            node_type_id: "m5.large"
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: "singleNode"
+            custom_tags:
+              ResourceClass: "SingleNode"
+          libraries:
+            - pypi:
+                package: "psycopg2-binary"
+            - pypi:
+                package: "databricks-sdk"
