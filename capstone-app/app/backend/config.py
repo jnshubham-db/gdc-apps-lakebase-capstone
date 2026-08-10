@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     dashboard_id: str | None = None
     genie_space_id: str | None = None
 
+    # Forward-ETL job id (bundle-injected via the app `job` resource, T7/T8).
+    forward_etl_job_id: str | None = None
+
     @property
     def deployed(self) -> bool:
         """True when running on Databricks Apps (SP creds are injected)."""
