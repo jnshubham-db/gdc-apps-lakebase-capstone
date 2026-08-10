@@ -1,0 +1,16 @@
+resources:
+  jobs:
+    forward_etl:
+      name: "customer360 forward-ETL (${bundle.target})"
+      tasks:
+        - task_key: drain_staging
+          notebook_task:
+            notebook_path: ../capstone-app/lakebase/forward_etl/pattern_a_psycopg2/drain_staging.py
+          environment_key: default
+      environments:
+        - environment_key: default
+          spec:
+            client: "3"
+            dependencies:
+              - "psycopg[binary]"
+              - "databricks-sdk"

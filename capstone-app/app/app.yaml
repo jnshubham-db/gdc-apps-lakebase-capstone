@@ -16,3 +16,4 @@ env:
   - { name: "CAPSTONE_CATALOG",  value: "test_jg_catalog" }
   - { name: "CAPSTONE_SCHEMA",   value: "gold" }
   - { name: "PG_UC_CATALOG",     value: "test_jg_catalog" }
+  - { name: "FORWARD_ETL_JOB_ID", valueFrom: "forward-etl-job" }

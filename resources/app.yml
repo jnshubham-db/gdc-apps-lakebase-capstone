@@ -27,3 +27,7 @@ resources:
             name: genie-space
             space_id: ${var.genie_space_id}
             permission: "CAN_RUN"
+        - name: forward-etl-job
+          job:
+            id: ${resources.jobs.forward_etl.id}
+            permission: "CAN_MANAGE_RUN"
