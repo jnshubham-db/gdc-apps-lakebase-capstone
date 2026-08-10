@@ -30,6 +30,7 @@ def _cfg(widget, env, default=""):
 CATALOG = _cfg("catalog", "CAPSTONE_CATALOG")
 PGHOST = _cfg("pghost", "PGHOST")
 PGDATABASE = _cfg("pgdatabase", "PGDATABASE")
+LAKEBASE_ENDPOINT = _cfg("lakebase_endpoint", "LAKEBASE_ENDPOINT")
 GOLD = f"{CATALOG}.gold"
 
 # COMMAND ----------
@@ -79,7 +80,10 @@ def lakebase_conn():
     Lakebase requires TLS, so pass an ``ssl_context``.
     """
     w = WorkspaceClient()
-    token = w.config.oauth_token().access_token
+    # Mint a fresh Lakebase credential the same way the app's db.py does
+    # (config.oauth_token() is unavailable under the job's default creds
+    # strategy). The endpoint path scopes the token to this Lakebase instance.
+    token = w.postgres.generate_database_credential(endpoint=LAKEBASE_ENDPOINT).token
     user = w.current_user.me().user_name
     return pg8000.dbapi.connect(
         host=PGHOST,

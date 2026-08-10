@@ -10,6 +10,7 @@ resources:
               catalog: ${var.catalog}
               pghost: "ep-billowing-cake-d7ma4pcu.database.eu-central-1.cloud.databricks.com"
               pgdatabase: "capstone_db"
+              lakebase_endpoint: "projects/capstone-pg/branches/production/endpoints/primary"
           environment_key: default
       environments:
         - environment_key: default
