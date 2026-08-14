@@ -1,0 +1,45 @@
+[project]
+name = "capstone-app"
+version = "0.1.0"
+description = "Customer 360 — Databricks Apps + Lakebase capstone"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "databricks-sdk>=0.40",
+    "pydantic-settings>=2.0",
+    "sqlmodel>=0.0.22",
+    "psycopg[binary,pool]>=3.2",
+    "httpx>=0.27",
+    "python-dotenv>=1.0",
+    "cachetools>=5.3",
+    # OpenTelemetry — auto-instrumentation for Databricks Apps observability.
+    # The Apps runtime injects the OTLP endpoint/headers/resource attrs; the
+    # `opentelemetry-instrument` command wrapper (see app.yaml) exports traces,
+    # metrics, and logs to the workspace otel_spans / otel_metrics / otel_logs
+    # tables. See docs.databricks.com/.../databricks-apps/observability.
+    "opentelemetry-distro>=0.48b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.27",
+    "opentelemetry-instrumentation-fastapi>=0.48b0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["setuptools>=70"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["backend*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+markers = [
+    "live: integration tests that hit the fevm-test-jg workspace / Lakebase (skipped without Databricks auth)",
+]

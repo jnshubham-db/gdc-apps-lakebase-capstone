@@ -1,0 +1,33 @@
+resources:
+  apps:
+    customer360:
+      name: "customer360-dev"
+      description: "Customer 360 — Acme Retail (capstone)"
+      git_repository:
+        provider: gitHub
+        url: ${var.git_repo_url}
+      git_source:
+        branch: ${var.git_branch}
+        source_code_path: capstone-app/app
+      user_api_scopes:
+        - sql
+        - dashboards.genie
+      resources:
+        - name: sql-warehouse
+          sql_warehouse:
+            id: ${var.warehouse_id}
+            permission: "CAN_USE"
+        - name: database
+          postgres:
+            branch: "projects/capstone-pg/branches/production"
+            database: "projects/capstone-pg/branches/production/databases/db-dq3m-k807y4emil"
+            permission: "CAN_CONNECT_AND_CREATE"
+        - name: genie-space
+          genie_space:
+            name: genie-space
+            space_id: ${var.genie_space_id}
+            permission: "CAN_RUN"
+        - name: forward-etl-job
+          job:
+            id: ${resources.jobs.forward_etl.id}
+            permission: "CAN_MANAGE_RUN"

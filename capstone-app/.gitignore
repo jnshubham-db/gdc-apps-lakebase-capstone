@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.databricks/
+.DS_Store
+node_modules/
+# built SPA is committed on the deploy branch (git-source app serves it directly)
+!app/backend/static/
+dist/
+build/
+*.log
