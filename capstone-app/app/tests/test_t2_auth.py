@@ -13,7 +13,6 @@ Two kinds:
 from __future__ import annotations
 
 import pytest
-
 from backend.auth import actor_email, obo_client, sp_client
 from backend.db import close_pool, lakebase_sp
 

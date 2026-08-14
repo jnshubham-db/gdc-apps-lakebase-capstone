@@ -135,8 +135,7 @@ def drain(conn, *, table, pk, gold_table, select_cols, merge_on, cast) -> int:
     cur = conn.cursor()
     try:
         cur.execute(
-            f"UPDATE {table} SET processed = true, processed_at = NOW() "
-            f"WHERE {pk}::text = ANY(%s)",
+            f"UPDATE {table} SET processed = true, processed_at = NOW() WHERE {pk}::text = ANY(%s)",
             (ids,),
         )
     finally:
@@ -186,8 +185,7 @@ with lakebase_conn() as conn:
         pk="override_id",
         gold_table=f"{GOLD}.customer_segment_overrides",
         select_cols=(
-            "override_id, customer_id, override_segment, reason, "
-            "author_email, updated_at"
+            "override_id, customer_id, override_segment, reason, author_email, updated_at"
         ),
         merge_on="t.customer_id = s.customer_id",
         cast=_cast_override,

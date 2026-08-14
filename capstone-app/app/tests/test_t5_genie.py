@@ -10,10 +10,9 @@ from __future__ import annotations
 import time
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.deps import get_obo_client
 from backend.main import app
+from fastapi.testclient import TestClient
 
 _TERMINAL = {"COMPLETED", "FAILED", "CANCELLED", "QUERY_RESULT_EXPIRED"}
 

@@ -3,8 +3,9 @@
 ## Python formatting & linting (ruff)
 
 All Python in this project MUST be formatted and lint-clean with **ruff**
-before every commit. Ruff config lives in `app/pyproject.toml`
-(`line-length = 100`, `target-version = "py311"`).
+before every commit. Ruff config lives in `capstone-app/ruff.toml`
+(`line-length = 100`, `target-version = "py311"`) so it applies to both
+`app/` and the sibling `lakebase/` tree.
 
 Run both, from the repo root, on the paths you touched:
 

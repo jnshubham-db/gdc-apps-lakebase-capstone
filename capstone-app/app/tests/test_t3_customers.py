@@ -8,10 +8,9 @@ marker and skip without Databricks auth.
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.deps import get_actor_email, get_obo_client
 from backend.main import app
+from fastapi.testclient import TestClient
 
 pytestmark = pytest.mark.live
 

@@ -88,8 +88,7 @@ def main() -> None:
         conn.commit()
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
-                "ORDER BY tablename"
+                "SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename"
             )
             present = {row[0] for row in cur.fetchall()}
 
@@ -98,9 +97,7 @@ def main() -> None:
         print(f"  [{'ok' if name in present else 'MISSING'}] public.{name}")
     missing = EXPECTED - present
     if missing:
-        raise SystemExit(
-            f"Staging tables missing after DDL: {', '.join(sorted(missing))}"
-        )
+        raise SystemExit(f"Staging tables missing after DDL: {', '.join(sorted(missing))}")
     print("All staging tables present.")
 
 

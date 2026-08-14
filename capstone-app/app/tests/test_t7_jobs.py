@@ -9,11 +9,10 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.config import Settings
 from backend.deps import get_sp_client
 from backend.main import app
+from fastapi.testclient import TestClient
 
 
 def test_run_models_importable():

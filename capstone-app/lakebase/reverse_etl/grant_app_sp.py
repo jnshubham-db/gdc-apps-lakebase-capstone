@@ -69,16 +69,12 @@ def main() -> None:
                 )
 
             # Schema usage.
-            cur.execute(
-                sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(role_ident)
-            )
+            cur.execute(sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(role_ident))
 
             # Read-only on synced tables.
             for t in SYNCED_TABLES:
                 cur.execute(
-                    sql.SQL("GRANT SELECT ON {} TO {}").format(
-                        sql.Identifier(t), role_ident
-                    )
+                    sql.SQL("GRANT SELECT ON {} TO {}").format(sql.Identifier(t), role_ident)
                 )
 
             # Read/write on staging tables.
@@ -91,9 +87,7 @@ def main() -> None:
 
             # Sequence usage (BIGSERIAL audit key, and any others).
             cur.execute(
-                sql.SQL("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO {}").format(
-                    role_ident
-                )
+                sql.SQL("GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO {}").format(role_ident)
             )
 
             # Future synced tables (recreated by the pipeline) inherit SELECT.
@@ -102,8 +96,7 @@ def main() -> None:
             # current user and broadly on the schema.
             cur.execute(
                 sql.SQL(
-                    "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
-                    "GRANT SELECT ON TABLES TO {}"
+                    "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {}"
                 ).format(role_ident)
             )
         conn.commit()

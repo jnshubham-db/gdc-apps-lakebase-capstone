@@ -27,10 +27,7 @@ def main() -> None:
         fqn = f"{catalog}.{schema}.{table}"
         w.statement_execution.execute_statement(
             warehouse_id=warehouse_id,
-            statement=(
-                f"ALTER TABLE {fqn} "
-                f"SET TBLPROPERTIES (delta.enableChangeDataFeed = true)"
-            ),
+            statement=(f"ALTER TABLE {fqn} SET TBLPROPERTIES (delta.enableChangeDataFeed = true)"),
             wait_timeout="30s",
         )
         print(f"  [ok] CDF enabled on {fqn}")

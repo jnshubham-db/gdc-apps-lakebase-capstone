@@ -7,10 +7,9 @@ to the SP client for the test, so those carry the ``live`` marker.
 from __future__ import annotations
 
 import pytest
-from fastapi.testclient import TestClient
-
 from backend.deps import get_obo_client
 from backend.main import app
+from fastapi.testclient import TestClient
 
 
 @pytest.fixture

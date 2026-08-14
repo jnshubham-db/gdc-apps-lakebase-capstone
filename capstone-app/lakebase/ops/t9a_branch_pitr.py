@@ -13,7 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import _common as c
 
@@ -34,9 +34,7 @@ def _count(profile: str, branch_path: str, cfg: dict, user: str) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser()
-    ap.add_argument(
-        "--keep", action="store_true", help="do not delete demo branches at the end"
-    )
+    ap.add_argument("--keep", action="store_true", help="do not delete demo branches at the end")
     args = ap.parse_args()
 
     cfg = c.load_cfg()
@@ -69,7 +67,7 @@ def main() -> None:
     time.sleep(
         20
     )  # ensure T0 is safely after branch creation / WAL settle (increased from 5s after PITR "too recent" error)
-    t0 = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    t0 = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"    T0 (before delete) = {t0}")
     time.sleep(2)
 
@@ -92,9 +90,7 @@ def main() -> None:
         profile, PROJECT, RESTORED, source_branch=demo, source_branch_time=t0
     )
     restored_n = _count(profile, restored, cfg, user)
-    print(
-        f"    {RESTORED} {STAGING} rows: {restored_n}   <-- screenshot 2: post-restore row count"
-    )
+    print(f"    {RESTORED} {STAGING} rows: {restored_n}   <-- screenshot 2: post-restore row count")
     assert restored_n == n, f"PITR restored {restored_n}, expected {n}"
     print(f"    PITR OK — recovered {restored_n} rows deleted on {DEMO}")
 

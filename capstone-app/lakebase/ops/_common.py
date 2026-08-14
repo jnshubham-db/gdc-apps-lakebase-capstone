@@ -89,15 +89,15 @@ def readwrite_endpoint(profile: str, branch_path: str) -> str:
 
 
 def endpoint_host(profile: str, endpoint_path: str) -> str:
-    return cli_json("postgres", "get-endpoint", endpoint_path, profile=profile)[
-        "status"
-    ]["hosts"]["host"]
+    return cli_json("postgres", "get-endpoint", endpoint_path, profile=profile)["status"]["hosts"][
+        "host"
+    ]
 
 
 def endpoint_token(profile: str, endpoint_path: str) -> str:
-    return cli_json(
-        "postgres", "generate-database-credential", endpoint_path, profile=profile
-    )["token"]
+    return cli_json("postgres", "generate-database-credential", endpoint_path, profile=profile)[
+        "token"
+    ]
 
 
 def connect(host: str, user: str, dbname: str, token: str) -> psycopg.Connection:

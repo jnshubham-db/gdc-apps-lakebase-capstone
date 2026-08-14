@@ -82,9 +82,7 @@ def _exists(profile: str, full_name: str) -> bool:
     return r.returncode == 0
 
 
-def _ensure_schema(
-    w: WorkspaceClient, warehouse_id: str, catalog: str, schema: str
-) -> None:
+def _ensure_schema(w: WorkspaceClient, warehouse_id: str, catalog: str, schema: str) -> None:
     w.statement_execution.execute_statement(
         warehouse_id=warehouse_id,
         statement=f"CREATE SCHEMA IF NOT EXISTS {catalog}.{schema}",
@@ -124,9 +122,7 @@ def main() -> None:
                 "storage_schema": STORAGE_SCHEMA,
             },
         }
-        print(
-            f"  [create] {full_name}  <-  {spec['source_table_full_name']}  ({policy})"
-        )
+        print(f"  [create] {full_name}  <-  {spec['source_table_full_name']}  ({policy})")
         r = _run(
             [
                 "databricks",

@@ -1,0 +1,5 @@
+# Ruff config for the whole capstone-app tree (app/ + lakebase/).
+# Placed at capstone-app/ so it is an ancestor of both packages; a config
+# under app/ would not apply to the sibling lakebase/ directory.
+line-length = 100
+target-version = "py311"

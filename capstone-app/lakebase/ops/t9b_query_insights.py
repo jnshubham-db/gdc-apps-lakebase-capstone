@@ -54,9 +54,7 @@ def _explain(cur) -> str:
 
 def _report(label: str, samples: list[float]) -> None:
     p = c.percentiles(samples)
-    print(
-        f"  {label}: p50={p[50]:.2f}ms  p95={p[95]:.2f}ms  p99={p[99]:.2f}ms  (n={len(samples)})"
-    )
+    print(f"  {label}: p50={p[50]:.2f}ms  p95={p[95]:.2f}ms  p99={p[99]:.2f}ms  (n={len(samples)})")
 
 
 def main() -> None:
@@ -90,9 +88,7 @@ def main() -> None:
 
                 print(f"[seed] inserting {args.rows} rows into {TABLE} ...")
                 _seed(cur, args.rows)
-                cur.execute(
-                    f"SELECT count(*) FROM {TABLE} WHERE actor_email = %s", (TARGET,)
-                )
+                cur.execute(f"SELECT count(*) FROM {TABLE} WHERE actor_email = %s", (TARGET,))
                 print(f"  target '{TARGET}' matches {cur.fetchone()[0]} rows")
                 cur.execute(f"ANALYZE {TABLE}")
 
@@ -102,12 +98,8 @@ def main() -> None:
                     cur.execute("SELECT pg_stat_statements_reset()")
                 _report("BEFORE", _timed_runs(cur, args.iters))
 
-                print(
-                    "\n[index] CREATE INDEX ON customer_audit_log (actor_email); ANALYZE"
-                )
-                cur.execute(
-                    f"CREATE INDEX idx_audit_actor_email ON {TABLE} (actor_email)"
-                )
+                print("\n[index] CREATE INDEX ON customer_audit_log (actor_email); ANALYZE")
+                cur.execute(f"CREATE INDEX idx_audit_actor_email ON {TABLE} (actor_email)")
                 cur.execute(f"ANALYZE {TABLE}")
 
                 print("\n[after] EXPLAIN (with index):")
