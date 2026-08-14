@@ -11,6 +11,7 @@ Flow (production is NEVER modified):
 from __future__ import annotations
 
 import argparse
+import json
 import time
 from datetime import datetime, timezone
 
@@ -47,12 +48,27 @@ def main() -> None:
     print(f"production {STAGING} rows (baseline): {prod_before}")
 
     print(f"\n[1] creating child branch {DEMO} from production ...")
-    demo = c.create_branch(profile, PROJECT, DEMO, source_branch=prod)
+    # Use no_expiry=true so PITR can later create a child from this branch.
+    # c.create_branch always sets TTL; the API rejects "child of TTL branch", so
+    # we call c.cli_json directly here.
+    c.cli_json(
+        "postgres",
+        "create-branch",
+        f"projects/{PROJECT}",
+        DEMO,
+        "--json",
+        json.dumps({"spec": {"source_branch": prod, "no_expiry": True}}),
+        "--replace-existing",
+        profile=profile,
+    )
+    demo = f"projects/{PROJECT}/branches/{DEMO}"
     print(f"    created {demo}   <-- screenshot 1: branch creation (Lakebase UI)")
 
     n = _count(profile, demo, cfg, user)
     print(f"[2] {DEMO} {STAGING} rows: {n}")
-    time.sleep(5)  # ensure T0 is safely after branch creation / WAL settle
+    time.sleep(
+        20
+    )  # ensure T0 is safely after branch creation / WAL settle (increased from 5s after PITR "too recent" error)
     t0 = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     print(f"    T0 (before delete) = {t0}")
     time.sleep(2)
