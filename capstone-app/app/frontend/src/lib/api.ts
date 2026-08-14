@@ -1,8 +1,10 @@
 import type {
+  AppConfig,
   CustomerDetail,
   CustomerFilters,
   CustomerMetrics,
   CustomerSummary,
+  DashboardAnalytics,
   Page,
 } from "./types";
 
@@ -63,4 +65,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ override_segment, reason }),
     }),
+
+  getConfig: () => request<AppConfig>("/config"),
+
+  getDashboardAnalytics: () => request<DashboardAnalytics>("/dashboard/analytics"),
 };

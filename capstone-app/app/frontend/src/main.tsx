@@ -11,6 +11,7 @@ import "./index.css";
 const Customers = lazy(() => import("./pages/Customers"));
 const CustomerDetail = lazy(() => import("./pages/CustomerDetail"));
 const ComingSoon = lazy(() => import("./pages/ComingSoon"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false } },
@@ -40,7 +41,7 @@ const router = createBrowserRouter([
         path: "dashboard",
         element: (
           <Suspense fallback={<RouteFallback />}>
-            <ComingSoon title="Dashboard" note="Embedded AI/BI dashboard lands in T4." />
+            <Dashboard />
           </Suspense>
         ),
       },

@@ -56,15 +56,44 @@ export function EmptyState({
   );
 }
 
-/** Recoverable error — a caution lamp, never a dead page. */
-export function ErrorState({ message, onRetry }: { message?: string; onRetry?: () => void }) {
+/** Recoverable error — a caution lamp, never a dead page.
+ *
+ * tone="alert" (default) — red alarm; use for genuine failures.
+ * tone="caution"         — amber advisory; use when a feed is simply
+ *                          absent (e.g. no OBO token in local dev).
+ */
+export function ErrorState({
+  message,
+  onRetry,
+  tone = "alert",
+}: {
+  message?: string;
+  onRetry?: () => void;
+  tone?: "alert" | "caution";
+}) {
+  const isAlert = tone === "alert";
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
-      <div className="grid h-14 w-14 place-items-center rounded-full border border-alert/50 bg-alert/10 shadow-glow-alert">
-        <AlertTriangle className="h-6 w-6 text-alert" strokeWidth={1.75} />
+      <div
+        className={
+          isAlert
+            ? "grid h-14 w-14 place-items-center rounded-full border border-alert/50 bg-alert/10 shadow-glow-alert"
+            : "grid h-14 w-14 place-items-center rounded-full border border-amber/60 bg-amber/10 shadow-glow-amber"
+        }
+      >
+        <AlertTriangle
+          className={isAlert ? "h-6 w-6 text-alert" : "h-6 w-6 text-amber"}
+          strokeWidth={1.75}
+        />
       </div>
-      <div className="font-display text-lg uppercase tracking-[0.12em] text-alert text-glow-alert">
-        Signal lost
+      <div
+        className={
+          isAlert
+            ? "font-display text-lg uppercase tracking-[0.12em] text-alert text-glow-alert"
+            : "font-display text-lg uppercase tracking-[0.12em] text-amber text-glow-amber"
+        }
+      >
+        {isAlert ? "Signal lost" : "Signal standby"}
       </div>
       <p className="max-w-sm font-mono text-xs text-muted">
         {message ?? "The instrument failed to read. Check the connection and re-try."}

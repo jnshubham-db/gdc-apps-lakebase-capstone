@@ -63,3 +63,41 @@ export interface CustomerFilters {
   page?: number;
   page_size?: number;
 }
+
+export interface AppConfig {
+  databricks_host: string;
+  dashboard_id: string | null;
+  genie_space_id: string | null;
+}
+
+export interface SegmentAgg {
+  segment_name: string;
+  customers: number;
+  avg_ltv: number;
+  avg_churn: number;
+}
+
+export interface ProductRevenue {
+  product_name: string;
+  category: string;
+  revenue: number;
+  units: number;
+}
+
+export interface TicketPoint {
+  week: string;
+  category: string;
+  tickets: number;
+}
+
+export interface ChurnBucket {
+  bucket: number;
+  customers: number;
+}
+
+export interface DashboardAnalytics {
+  segments: SegmentAgg[];
+  products: ProductRevenue[];
+  tickets: TicketPoint[];
+  churn_buckets: ChurnBucket[];
+}
