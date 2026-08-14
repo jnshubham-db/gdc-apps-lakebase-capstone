@@ -11,6 +11,7 @@ intent, not string-building.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 
 from databricks.sdk import WorkspaceClient
@@ -25,6 +26,7 @@ from ..models import (
     CategorySpend,
     CustomerDetail,
     CustomerMetrics,
+    CustomerSummary,
     CustomerSynced,
     NoteIn,
     Page,
@@ -49,20 +51,54 @@ async def _row(conn: AsyncConnection, sql: str, params=None) -> dict | None:
     return rows[0] if rows else None
 
 
+def _encode_cursor(lifetime_value: float | None, customer_id: str) -> str:
+    """Opaque forward cursor over the (lifetime_value, customer_id) sort key."""
+    return base64.urlsafe_b64encode(f"{lifetime_value}|{customer_id}".encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[float, str]:
+    value, customer_id = base64.urlsafe_b64decode(cursor.encode()).decode().split("|", 1)
+    return float(value), customer_id
+
+
 # --- reads (Lakebase, SP) ---------------------------------------------------
 
 
-@router.get("", response_model=Page[CustomerSynced])
-async def list_customers(conn: DbConn, page: Pagination, filters: Filters) -> Page[CustomerSynced]:
+@router.get("", response_model=Page[CustomerSummary])
+async def list_customers(conn: DbConn, page: Pagination, filters: Filters) -> Page[CustomerSummary]:
     clause, params = filters.where()
     total = (await _row(conn, f"SELECT COUNT(*) AS n FROM customers_synced {clause}", params))["n"]
-    rows = await _rows(
-        conn,
-        f"{_LIST_SELECT} {clause} {_LIST_ORDER} LIMIT %(limit)s OFFSET %(offset)s",
-        {**params, "limit": page.page_size, "offset": page.offset},
+
+    # Over-fetch one row to detect whether a next page exists (and thus whether
+    # to emit a cursor) without a second COUNT round-trip.
+    qparams: dict = {**params, "limit": page.page_size + 1}
+    if page.after:
+        # Keyset seek: uses idx_customers_ltv_id (falls back to the composite
+        # index when a segment filter is active). No OFFSET scan.
+        cx, cid = _decode_cursor(page.after)
+        keyset = "(lifetime_value < %(cx)s OR (lifetime_value = %(cx)s AND customer_id > %(cid)s))"
+        where = f"{clause} AND {keyset}" if clause else f"WHERE {keyset}"
+        qparams |= {"cx": cx, "cid": cid}
+        sql = f"{_LIST_SELECT} {where} {_LIST_ORDER} LIMIT %(limit)s"
+    else:
+        qparams["offset"] = page.offset
+        sql = f"{_LIST_SELECT} {clause} {_LIST_ORDER} LIMIT %(limit)s OFFSET %(offset)s"
+
+    rows = await _rows(conn, sql, qparams)
+    has_more = len(rows) > page.page_size
+    items = [CustomerSummary.model_validate(r) for r in rows[: page.page_size]]
+    next_cursor = (
+        _encode_cursor(items[-1].lifetime_value, items[-1].customer_id)
+        if has_more and items
+        else None
     )
-    items = [CustomerSynced.model_validate(r) for r in rows]
-    return Page(items=items, total=total, page=page.page, page_size=page.page_size)
+    return Page(
+        items=items,
+        total=total,
+        page=page.page,
+        page_size=page.page_size,
+        next_cursor=next_cursor,
+    )
 
 
 @router.get("/{customer_id}", response_model=CustomerDetail)
@@ -159,11 +195,20 @@ async def override_segment(
 
 # --- SQL --------------------------------------------------------------------
 
-_LIST_SELECT = "SELECT * FROM customers_synced"
+# Explicit column lists (no SELECT *): the list ships only what the grid
+# renders; detail/activity ship the full profile + transaction shapes.
+_LIST_COLS = "customer_id, first_name, last_name, email, segment_id, lifetime_value, churn_score"
+_CUSTOMER_COLS = (
+    "customer_id, first_name, last_name, email, country, city, age, gender, signup_date, "
+    "segment_id, lifetime_value, last_purchase_date, churn_score, phone, updated_at"
+)
+_TXN_COLS = "transaction_id, customer_id, product_id, transaction_date, channel, status, amount"
+
+_LIST_SELECT = f"SELECT {_LIST_COLS} FROM customers_synced"
 _LIST_ORDER = "ORDER BY lifetime_value DESC NULLS LAST, customer_id"
-_CUSTOMER_BY_ID = "SELECT * FROM customers_synced WHERE customer_id = %s"
+_CUSTOMER_BY_ID = f"SELECT {_CUSTOMER_COLS} FROM customers_synced WHERE customer_id = %s"
 _RECENT_TXNS = (
-    "SELECT * FROM transactions_synced WHERE customer_id = %s "
+    f"SELECT {_TXN_COLS} FROM transactions_synced WHERE customer_id = %s "
     "ORDER BY transaction_date DESC LIMIT 20"
 )
 

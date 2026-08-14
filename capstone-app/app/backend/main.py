@@ -25,12 +25,20 @@ log = logging.getLogger(__name__)
 
 _STATIC_DIR = Path(__file__).resolve().parent / "static"
 
-# Composite index backing the default list sort/filter. Idempotent, and
-# recreated on startup so a full re-sync of the synced table can't leave it
-# missing (indexes/reads/DROP are permitted on synced tables).
+# Indexes backing the list sort/filter. Idempotent, and recreated on startup so
+# a full re-sync of the synced table can't leave them missing (indexes/reads/
+# DROP are permitted on synced tables).
+#   - idx_customers_seg_ltv: WHERE segment_id = ? ORDER BY lifetime_value DESC
+#   - idx_customers_ltv_id:  the unfiltered keyset seek (lifetime_value, id)
 _INDEX_DDL = (
-    "CREATE INDEX IF NOT EXISTS idx_customers_seg_ltv "
-    "ON customers_synced (segment_id, lifetime_value DESC)"
+    (
+        "CREATE INDEX IF NOT EXISTS idx_customers_seg_ltv "
+        "ON customers_synced (segment_id, lifetime_value DESC)"
+    ),
+    (
+        "CREATE INDEX IF NOT EXISTS idx_customers_ltv_id "
+        "ON customers_synced (lifetime_value DESC, customer_id)"
+    ),
 )
 
 
@@ -39,17 +47,32 @@ async def lifespan(app: FastAPI):
     try:
         async with lakebase_sp() as conn:
             async with conn.cursor() as cur:
-                await cur.execute(_INDEX_DDL)
+                for ddl in _INDEX_DDL:
+                    await cur.execute(ddl)
             await conn.commit()
-        log.info("startup: pagination index ensured")
+        log.info("startup: pagination indexes ensured")
     except Exception:
-        log.warning("startup: could not ensure pagination index", exc_info=True)
+        log.warning("startup: could not ensure pagination indexes", exc_info=True)
     yield
     await close_pool()
 
 
 app = FastAPI(title="Customer 360", lifespan=lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# OpenTelemetry request tracing. The `opentelemetry-instrument` command wrapper
+# (app.yaml) already auto-instruments when deployed; instrumenting the app
+# instance here means local `uvicorn` runs are traced too, and is a no-op if the
+# wrapper already instrumented it. Guarded so a telemetry-less env still boots;
+# `trace` stays None then, and the request-id span stamping below is skipped.
+try:
+    from opentelemetry import trace
+    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
+    FastAPIInstrumentor.instrument_app(app, excluded_urls="assets/.*")
+except Exception:
+    trace = None
+    log.warning("OpenTelemetry FastAPI instrumentation unavailable", exc_info=True)
 
 
 @app.exception_handler(PermissionError)
@@ -61,8 +84,22 @@ async def permission_error_handler(_: Request, exc: PermissionError):
 @app.middleware("http")
 async def request_id(request: Request, call_next):
     rid = request.headers.get("X-Request-Id") or str(uuid.uuid4())
+    # Correlate the request id with the OTel trace so a log/trace lookup by
+    # X-Request-Id resolves the whole React → FastAPI → Lakebase/SQL span tree.
+    if trace is not None:
+        trace.get_current_span().set_attribute("request.id", rid)
     response = await call_next(request)
     response.headers["X-Request-Id"] = rid
+    # Idempotent API GETs are privately cacheable so back/forward navigation is
+    # free; must-revalidate keeps writes from being served stale. TanStack Query
+    # staleTimes remain the primary client-side control (see lib/queries.ts).
+    if (
+        request.method == "GET"
+        and request.url.path.startswith("/api/")
+        and 200 <= response.status_code < 300
+        and "cache-control" not in response.headers
+    ):
+        response.headers["Cache-Control"] = "private, max-age=30, must-revalidate"
     return response
 
 

@@ -1,6 +1,19 @@
 // Mirrors the FastAPI response models (backend/models.py).
 
+// Slim list-row shape (mirrors backend CustomerSummary) — only what the grid
+// renders. The detail view uses the full CustomerProfile below.
 export interface CustomerSummary {
+  customer_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+  segment_id: string | null;
+  lifetime_value: number | null;
+  churn_score: number | null;
+}
+
+// Full profile (mirrors backend CustomerSynced), returned by GET /customers/{id}.
+export interface CustomerProfile {
   customer_id: string;
   first_name: string | null;
   last_name: string | null;
@@ -29,7 +42,7 @@ export interface Transaction {
 }
 
 export interface CustomerDetail {
-  profile: CustomerSummary;
+  profile: CustomerProfile;
   transactions: Transaction[];
 }
 
@@ -54,6 +67,7 @@ export interface Page<T> {
   total: number;
   page: number;
   page_size: number;
+  next_cursor: string | null;
 }
 
 export interface CustomerFilters {
@@ -62,6 +76,7 @@ export interface CustomerFilters {
   max_churn?: number;
   page?: number;
   page_size?: number;
+  after?: string; // keyset cursor for the next page
 }
 
 export interface AppConfig {

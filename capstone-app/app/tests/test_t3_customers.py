@@ -40,13 +40,30 @@ def test_list_shape_and_cap(client):
     r = client.get("/api/customers", params={"page": 1, "page_size": 5})
     assert r.status_code == 200
     body = r.json()
-    assert set(body) == {"items", "total", "page", "page_size"}
+    assert set(body) == {"items", "total", "page", "page_size", "next_cursor"}
     assert len(body["items"]) <= 5
     assert body["total"] > len(body["items"])
 
 
 def test_page_size_over_cap_is_422(client):
     assert client.get("/api/customers", params={"page_size": 101}).status_code == 422
+
+
+def test_keyset_pagination_advances(client):
+    """Following next_cursor returns a disjoint, correctly-ordered next page."""
+    first = client.get("/api/customers", params={"page_size": 5}).json()
+    assert first["next_cursor"]  # more than 5 customers exist
+    second = client.get(
+        "/api/customers", params={"page_size": 5, "after": first["next_cursor"]}
+    ).json()
+
+    first_ids = {c["customer_id"] for c in first["items"]}
+    second_ids = {c["customer_id"] for c in second["items"]}
+    assert first_ids.isdisjoint(second_ids)
+    # sort key is lifetime_value DESC, so page 2's max LTV ≤ page 1's min LTV
+    assert min(c["lifetime_value"] for c in first["items"]) >= max(
+        c["lifetime_value"] for c in second["items"]
+    )
 
 
 def test_filter_narrows_results(client):

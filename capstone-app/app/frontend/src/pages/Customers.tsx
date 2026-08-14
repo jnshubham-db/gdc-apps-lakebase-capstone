@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { DraftFilters, EMPTY_FILTERS, FilterBar } from "@/components/FilterBar";
@@ -18,26 +18,40 @@ const LTV_CEILING = 120_000;
 export default function Customers() {
   const navigate = useNavigate();
   const [draft, setDraft] = useState<DraftFilters>(EMPTY_FILTERS);
-  const [page, setPage] = useState(1);
+  // Keyset pagination: cursors[i] is the `after` cursor used to fetch page i+1
+  // (cursors[0] is undefined → page 1). Prev pops, Next pushes next_cursor —
+  // so back-navigation replays a cached page and never re-scans with OFFSET.
+  const [cursors, setCursors] = useState<(string | undefined)[]>([undefined]);
   const debounced = useDebounced(draft, 250);
 
+  const pageNum = cursors.length;
+  const after = cursors[cursors.length - 1];
+
   const filters: CustomerFilters = useMemo(() => {
-    const f: CustomerFilters = { page, page_size: PAGE_SIZE };
+    const f: CustomerFilters = { page: pageNum, page_size: PAGE_SIZE };
+    if (after) f.after = after;
     if (debounced.segment) f.segment = debounced.segment;
     if (debounced.minLtv) f.min_ltv = Number(debounced.minLtv);
     if (debounced.maxChurn) f.max_churn = Number(debounced.maxChurn);
     return f;
-    // reset to page 1 whenever a filter changes
-  }, [debounced, page]);
+  }, [debounced, pageNum, after]);
 
   const onFilterChange = (next: DraftFilters) => {
     setDraft(next);
-    setPage(1);
+    setCursors([undefined]); // any filter change resets to page 1
   };
 
   const { data, isPending, isError, error, refetch, isPlaceholderData } = useCustomers(filters);
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / PAGE_SIZE)) : 1;
+  const canPrev = cursors.length > 1;
+  const canNext = !!data?.next_cursor;
+
+  // Stable so the memoized rows don't re-render on every parent state change.
+  const onSelect = useCallback(
+    (id: string) => navigate(`/customers/${id}`),
+    [navigate],
+  );
 
   return (
     <div className="space-y-6">
@@ -83,7 +97,7 @@ export default function Customers() {
         ) : (
           <ul className={cn("divide-y divide-bezel/60", isPlaceholderData && "opacity-60")}>
             {data.items.map((c) => (
-              <CustomerRow key={c.customer_id} c={c} onClick={() => navigate(`/customers/${c.customer_id}`)} />
+              <CustomerRow key={c.customer_id} c={c} onSelect={onSelect} />
             ))}
           </ul>
         )}
@@ -93,14 +107,14 @@ export default function Customers() {
       {data && data.items.length > 0 && (
         <div className="flex items-center justify-between">
           <span className="placard">
-            Page {data.page} / {totalPages}
+            Page {pageNum} / {totalPages}
           </span>
           <div className="flex gap-2">
             <Button
               variant="secondary"
               size="sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={!canPrev}
+              onClick={() => setCursors((c) => c.slice(0, -1))}
             >
               <ChevronLeft className="h-4 w-4" strokeWidth={2} />
               Prev
@@ -108,8 +122,8 @@ export default function Customers() {
             <Button
               variant="secondary"
               size="sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
+              disabled={!canNext}
+              onClick={() => data.next_cursor && setCursors((c) => [...c, data.next_cursor!])}
             >
               Next
               <ChevronRight className="h-4 w-4" strokeWidth={2} />
@@ -121,13 +135,21 @@ export default function Customers() {
   );
 }
 
-function CustomerRow({ c, onClick }: { c: CustomerSummary; onClick: () => void }) {
+// Memoized so paging/filtering only re-renders rows whose data actually
+// changed; the stable customer_id key keeps reconciliation cheap.
+const CustomerRow = memo(function CustomerRow({
+  c,
+  onSelect,
+}: {
+  c: CustomerSummary;
+  onSelect: (id: string) => void;
+}) {
   const name = [c.first_name, c.last_name].filter(Boolean).join(" ") || "—";
   const band = churnBand(c.churn_score);
   return (
     <li>
       <button
-        onClick={onClick}
+        onClick={() => onSelect(c.customer_id)}
         className={cn(
           "grid w-full grid-cols-[7rem_1fr_9rem_7rem_1fr] items-center gap-4 px-4 py-3 text-left transition-colors hover:bg-green/5",
           band === "alert" && "border-l-2 border-l-alert/70",
@@ -155,4 +177,4 @@ function CustomerRow({ c, onClick }: { c: CustomerSummary; onClick: () => void }
       </button>
     </li>
   );
-}
+});

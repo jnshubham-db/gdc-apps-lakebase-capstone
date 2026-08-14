@@ -40,15 +40,22 @@ def get_sp_client() -> WorkspaceClient:
 
 
 class PageParams:
-    """Shared pagination params: page ≥ 1, page_size 1..100 (>100 → 422)."""
+    """Shared pagination params: page ≥ 1, page_size 1..100 (>100 → 422).
+
+    ``after`` is an opaque keyset cursor: when present the list endpoint pages
+    forward by keyset (index seek) instead of OFFSET; ``page`` is then just the
+    echoed page number the client tracks for display.
+    """
 
     def __init__(
         self,
         page: int = Query(1, ge=1),
         page_size: int = Query(25, ge=1, le=100),
+        after: str | None = Query(None),
     ):
         self.page = page
         self.page_size = page_size
+        self.after = after
         self.offset = (page - 1) * page_size
 
 

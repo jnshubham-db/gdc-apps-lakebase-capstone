@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 
 from databricks.sdk import WorkspaceClient
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from ..config import get_settings
@@ -21,6 +21,15 @@ from ..deps import Obo
 router = APIRouter(prefix="/api/genie", tags=["genie"])
 
 _ROW_CAP = 50  # server-side cap on preview rows (UI shows ~10)
+_TIMEOUT_S = 30  # bound each Genie SDK call so a slow space can't tie up a worker
+
+
+async def _bounded(fn, *args):
+    """Run a blocking SDK call in a thread, bounded by ``_TIMEOUT_S``."""
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(fn, *args), _TIMEOUT_S)
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="Genie request timed out") from None
 
 
 class GenieStart(BaseModel):
@@ -87,14 +96,14 @@ def _fetch(w: WorkspaceClient, cid: str, mid: str) -> GenieMessageOut:
 
 @router.post("/conversations")
 async def start_conversation(body: GenieStart, obo: Obo) -> dict:
-    return await asyncio.to_thread(_start, obo, body.content)
+    return await _bounded(_start, obo, body.content)
 
 
 @router.post("/conversations/{cid}/messages")
 async def create_message(cid: str, body: GenieFollowUp, obo: Obo) -> dict:
-    return await asyncio.to_thread(_follow_up, obo, cid, body.content)
+    return await _bounded(_follow_up, obo, cid, body.content)
 
 
 @router.get("/conversations/{cid}/messages/{mid}", response_model=GenieMessageOut)
 async def get_message(cid: str, mid: str, obo: Obo) -> GenieMessageOut:
-    return await asyncio.to_thread(_fetch, obo, cid, mid)
+    return await _bounded(_fetch, obo, cid, mid)

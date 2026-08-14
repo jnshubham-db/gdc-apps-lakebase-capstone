@@ -49,6 +49,7 @@ function qs(filters: CustomerFilters): string {
   if (filters.max_churn != null) p.set("max_churn", String(filters.max_churn));
   p.set("page", String(filters.page ?? 1));
   p.set("page_size", String(filters.page_size ?? 25));
+  if (filters.after) p.set("after", filters.after);
   return p.toString();
 }
 

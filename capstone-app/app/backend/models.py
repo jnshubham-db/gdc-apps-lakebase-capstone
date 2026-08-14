@@ -106,6 +106,22 @@ class SegmentOverrideIn(BaseModel):
 # --- API response composites ------------------------------------------------
 
 
+class CustomerSummary(BaseModel):
+    """Slim list-row projection — only the columns the list grid renders.
+
+    Kept deliberately narrower than ``CustomerSynced`` so the list endpoint
+    ships the minimum payload (no ``SELECT *``) for up to 100 rows per page.
+    """
+
+    customer_id: str
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str | None = None
+    segment_id: str | None = None
+    lifetime_value: float | None = None
+    churn_score: float | None = None
+
+
 class CustomerDetail(BaseModel):
     """Profile + recent activity, returned by GET /customers/{id}."""
 
@@ -139,6 +155,9 @@ class Page(BaseModel, Generic[T]):
     total: int
     page: int
     page_size: int
+    # Opaque keyset cursor for the *next* page (null on the last page). The
+    # client passes it back as ?after=… to page forward without OFFSET.
+    next_cursor: str | None = None
 
 
 # --- forward-ETL job runs (T7) ----------------------------------------------
