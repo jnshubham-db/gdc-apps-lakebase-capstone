@@ -19,6 +19,16 @@ from ..models import RunStatus, RunSummary, RunTrigger
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
+_TIMEOUT_S = 30  # bound each Jobs SDK call so a slow control plane can't hang a worker
+
+
+async def _bounded(fn, *args):
+    """Run a blocking Jobs SDK call in a thread, bounded by ``_TIMEOUT_S``."""
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(fn, *args), _TIMEOUT_S)
+    except TimeoutError:
+        raise HTTPException(status_code=504, detail="Jobs API request timed out") from None
+
 
 def _job_id() -> str:
     job_id = get_settings().forward_etl_job_id
@@ -72,15 +82,15 @@ def _list_runs(w: WorkspaceClient, job_id: str) -> list[RunSummary]:
 
 @router.post("/run-forward-etl", response_model=RunTrigger)
 async def run_forward_etl(sp: Sp) -> RunTrigger:
-    return await asyncio.to_thread(_trigger, sp, _job_id())
+    return await _bounded(_trigger, sp, _job_id())
 
 
 @router.get("/runs/{run_id}", response_model=RunStatus)
 async def get_run(run_id: int, sp: Sp) -> RunStatus:
     _job_id()  # 503 if not configured
-    return await asyncio.to_thread(_get_run, sp, run_id)
+    return await _bounded(_get_run, sp, run_id)
 
 
 @router.get("/runs", response_model=list[RunSummary])
 async def list_runs(sp: Sp) -> list[RunSummary]:
-    return await asyncio.to_thread(_list_runs, sp, _job_id())
+    return await _bounded(_list_runs, sp, _job_id())

@@ -715,11 +715,19 @@ submission writeup.
 
 ### Observability
 
-- Structured logging (`logging.getLogger(__name__)` + JSON formatter).
-- Per-request `X-Request-Id` header (generate if missing) echoed back
-  for correlation across the React → FastAPI → Lakebase / SQL hop.
-- Log slow queries (Lakebase / SQL warehouse) with their parameters at
-  `WARNING` level when they exceed a threshold (e.g. 500ms).
+- **OpenTelemetry auto-instrumentation** ([Databricks Apps observability](https://docs.databricks.com/aws/en/dev-tools/databricks-apps/observability?language=FastAPI)).
+  Wrap uvicorn with `opentelemetry-instrument` in `app.yaml` so the Apps
+  runtime's injected OTLP config exports traces / metrics / logs to the
+  workspace `otel_spans` / `otel_metrics` / `otel_logs` tables. Also call
+  `FastAPIInstrumentor.instrument_app(app)` so local runs are traced too.
+  Deps: `opentelemetry-distro`, `opentelemetry-exporter-otlp-proto-grpc`,
+  `opentelemetry-instrumentation-fastapi`.
+- Per-request `X-Request-Id` header (generate if missing) echoed back, and
+  stamped onto the active span (`request.id`) so a lookup by request id
+  resolves the whole React → FastAPI → Lakebase / SQL trace.
+- Per-request spans carry durations to `otel_spans`, so slow requests
+  (and the slow queries inside them) are queryable there rather than via
+  ad-hoc log scraping.
 
 **Done when:**
 - [ ] Customer list endpoint serves any page in < 200ms server-side

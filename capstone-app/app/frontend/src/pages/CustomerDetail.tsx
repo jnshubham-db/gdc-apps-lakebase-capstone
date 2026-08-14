@@ -6,7 +6,7 @@ import { Gauge } from "@/components/Gauge";
 import { EmptyState, ErrorState, Skeleton } from "@/components/states";
 import { ToneNav } from "@/components/DetailTabs";
 import { ChurnReadout, Panel } from "@/components/ui";
-import { useCustomerDetail } from "@/lib/queries";
+import { useCustomerDetail, useCustomerMetrics } from "@/lib/queries";
 import { segmentName } from "@/lib/segments";
 import { fmtDate, usd } from "@/lib/utils";
 import { MetricsTab } from "@/components/tabs/MetricsTab";
@@ -17,6 +17,10 @@ import { SegmentTab } from "@/components/tabs/SegmentTab";
 export default function CustomerDetail() {
   const { id = "" } = useParams();
   const { data, isPending, isError, error, refetch } = useCustomerDetail(id);
+  // Fan out the expensive warehouse metrics query alongside the profile fetch
+  // from first render, so it isn't gated on the Metrics tab mounting. Both
+  // share one cache key, so MetricsTab reuses this in-flight request.
+  useCustomerMetrics(id);
 
   return (
     <div className="space-y-6">
@@ -67,7 +71,7 @@ export default function CustomerDetail() {
   );
 }
 
-function ProfileHeader({ profile }: { profile: import("@/lib/types").CustomerSummary }) {
+function ProfileHeader({ profile }: { profile: import("@/lib/types").CustomerProfile }) {
   const name = [profile.first_name, profile.last_name].filter(Boolean).join(" ") || "—";
   return (
     <Panel className="p-5 md:p-6">

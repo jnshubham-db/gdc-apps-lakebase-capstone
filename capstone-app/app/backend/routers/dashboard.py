@@ -68,14 +68,19 @@ class DashboardAnalytics(BaseModel):
 # row-level security.
 _analytics_cache: TTLCache = TTLCache(maxsize=1, ttl=300)
 
+# Static workspace ids — cache the built payload for 5 min.
+_config_cache: TTLCache = TTLCache(maxsize=1, ttl=300)
+
 
 @router.get("/config", response_model=AppConfig)
 async def get_config(settings: SettingsDep) -> AppConfig:
-    return AppConfig(
-        databricks_host=settings.databricks_host,
-        dashboard_id=settings.dashboard_id,
-        genie_space_id=settings.genie_space_id,
-    )
+    if "config" not in _config_cache:
+        _config_cache["config"] = AppConfig(
+            databricks_host=settings.databricks_host,
+            dashboard_id=settings.dashboard_id,
+            genie_space_id=settings.genie_space_id,
+        )
+    return _config_cache["config"]
 
 
 def _run_sql(w: WorkspaceClient, sql: str) -> list[dict]:

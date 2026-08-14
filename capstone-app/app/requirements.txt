@@ -9,6 +9,8 @@ anyio==4.14.2
     #   httpx
     #   starlette
     #   watchfiles
+asgiref==3.12.1
+    # via opentelemetry-instrumentation-asgi
 cachetools==7.1.7
     # via capstone-app
 certifi==2026.7.22
@@ -32,8 +34,12 @@ fastapi==0.141.1
     # via capstone-app
 google-auth==2.56.2
     # via databricks-sdk
+googleapis-common-protos==1.75.1
+    # via opentelemetry-exporter-otlp-proto-grpc
 greenlet==3.5.4 ; platform_machine == 'AMD64' or platform_machine == 'WIN32' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'ppc64le' or platform_machine == 'win32' or platform_machine == 'x86_64'
     # via sqlalchemy
+grpcio==1.83.0
+    # via opentelemetry-exporter-otlp-proto-grpc
 h11==0.16.0
     # via
     #   httpcore
@@ -49,8 +55,55 @@ idna==3.18
     #   anyio
     #   httpx
     #   requests
+opentelemetry-api==1.44.0
+    # via
+    #   opentelemetry-distro
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-sdk
+    #   opentelemetry-semantic-conventions
+opentelemetry-distro==0.65b0
+    # via capstone-app
+opentelemetry-exporter-otlp-proto-common==1.44.0
+    # via opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-exporter-otlp-proto-grpc==1.44.0
+    # via capstone-app
+opentelemetry-instrumentation==0.65b0
+    # via
+    #   opentelemetry-distro
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-asgi==0.65b0
+    # via opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-fastapi==0.65b0
+    # via capstone-app
+opentelemetry-proto==1.44.0
+    # via
+    #   opentelemetry-exporter-otlp-proto-common
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-sdk==1.44.0
+    # via
+    #   opentelemetry-distro
+    #   opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-semantic-conventions==0.65b0
+    # via
+    #   opentelemetry-instrumentation
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+    #   opentelemetry-sdk
+opentelemetry-util-http==0.65b0
+    # via
+    #   opentelemetry-instrumentation-asgi
+    #   opentelemetry-instrumentation-fastapi
+packaging==26.2
+    # via opentelemetry-instrumentation
 protobuf==6.33.6
-    # via databricks-sdk
+    # via
+    #   databricks-sdk
+    #   googleapis-common-protos
+    #   opentelemetry-proto
 psycopg==3.3.4
     # via capstone-app
 psycopg-binary==3.3.4 ; implementation_name != 'pypy'
@@ -91,6 +144,11 @@ typing-extensions==4.16.0
     # via
     #   anyio
     #   fastapi
+    #   grpcio
+    #   opentelemetry-api
+    #   opentelemetry-exporter-otlp-proto-grpc
+    #   opentelemetry-sdk
+    #   opentelemetry-semantic-conventions
     #   psycopg
     #   psycopg-pool
     #   pydantic
@@ -118,3 +176,5 @@ watchfiles==1.2.0
     # via uvicorn
 websockets==17.0.1
     # via uvicorn
+wrapt==2.3.0
+    # via opentelemetry-instrumentation
