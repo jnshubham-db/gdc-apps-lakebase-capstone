@@ -1,6 +1,6 @@
 # T9 — Lakebase ops
 
-Reproducible drivers for the two T9 exercises. Both run on **short-TTL child
+Reproducible drivers for the two T9 exercises. Both run on **throwaway child
 branches** of `projects/capstone-pg`; **`production` is never modified**.
 
 All scripts read `../../app/.env` and authenticate via its `DATABRICKS_PROFILE`.
@@ -15,7 +15,11 @@ uv run --with "psycopg[binary]" --with databricks-sdk --with python-dotenv \
 ```
 
 `--keep` leaves demo branches up so you can screenshot the Lakebase UI; omit it
-(or delete-branch manually) to clean up. Branches carry a 4h TTL as a backstop.
+and each driver deletes its branches on exit (T9a via `try/finally`, so cleanup
+runs even if a step fails). Backstop TTLs differ by branch: the T9b perf branch
+and the T9a `capstone-pitr-restored` branch carry a 4h TTL, but the T9a
+`capstone-pitr-demo` branch is **`no_expiry`** (PITR requires a non-expiring
+parent) — so if you run with `--keep`, delete that one manually when done.
 
 | Script | Demonstrates | Screenshots |
 |---|---|---|
