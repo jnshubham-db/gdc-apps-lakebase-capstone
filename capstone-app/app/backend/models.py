@@ -139,3 +139,22 @@ class Page(BaseModel, Generic[T]):
     total: int
     page: int
     page_size: int
+
+
+# --- forward-ETL job runs (T7) ----------------------------------------------
+
+
+class RunTrigger(BaseModel):
+    run_id: int
+
+
+class RunSummary(BaseModel):
+    run_id: int
+    state: str
+    result_state: str | None = None
+    start_time: int | None = None
+    duration_ms: int | None = None
+
+
+class RunStatus(RunSummary):
+    run_page_url: str | None = None

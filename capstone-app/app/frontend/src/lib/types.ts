@@ -101,3 +101,40 @@ export interface DashboardAnalytics {
   tickets: TicketPoint[];
   churn_buckets: ChurnBucket[];
 }
+
+export interface GenieResult {
+  columns: string[];
+  rows: unknown[][];
+}
+
+export interface GenieMessageOut {
+  status: string;
+  text: string | null;
+  result: GenieResult | null;
+  error: string | null;
+}
+
+export interface GenieStartOut {
+  conversation_id: string;
+  message_id: string;
+}
+
+export interface GenieFollowUpOut {
+  message_id: string;
+}
+
+export interface RunTrigger {
+  run_id: number;
+}
+
+export interface RunSummary {
+  run_id: number;
+  state: string;
+  result_state: string | null;
+  start_time: number | null;
+  duration_ms: number | null;
+}
+
+export interface RunStatus extends RunSummary {
+  run_page_url: string | null;
+}

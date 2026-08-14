@@ -71,3 +71,41 @@ export function useDashboardAnalytics() {
     retry: 1,
   });
 }
+
+const TERMINAL_RUN = new Set(["TERMINATED", "SKIPPED", "INTERNAL_ERROR"]);
+
+export function useForwardEtlRuns() {
+  return useQuery({
+    queryKey: ["jobs", "runs"] as const,
+    queryFn: () => api.jobs.listRuns(),
+    staleTime: 5_000,
+    retry: 1,
+  });
+}
+
+export function useRunForwardEtl() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.jobs.runForwardEtl(),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs", "runs"] }),
+  });
+}
+
+// Polls one run while its state is non-terminal; refreshes the runs list when
+// it settles. `enabled` gates polling to an in-flight run id.
+export function useForwardEtlRun(runId: number | null, enabled: boolean) {
+  const qc = useQueryClient();
+  return useQuery({
+    queryKey: ["jobs", "run", runId] as const,
+    queryFn: () => api.jobs.getRun(runId as number),
+    enabled: enabled && runId != null,
+    refetchInterval: (query) => {
+      const state = query.state.data?.state;
+      if (state && TERMINAL_RUN.has(state)) {
+        qc.invalidateQueries({ queryKey: ["jobs", "runs"] });
+        return false;
+      }
+      return 2_000;
+    },
+  });
+}

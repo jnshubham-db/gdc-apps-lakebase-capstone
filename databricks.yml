@@ -1,0 +1,27 @@
+bundle:
+  name: customer360
+
+include:
+  - resources/*.yml
+
+variables:
+  warehouse_id:      { default: "e31f5efacda6d932" }
+  dashboard_id:      { default: "01f19331dc2e190cbba8dc3f1cbe1c26" }
+  genie_space_id:    { default: "01f19331ffeb16119db5afb749349f4c" }
+  catalog:           { default: "test_jg_catalog" }
+  pg_uc_catalog:     { default: "test_jg_catalog" }
+  git_repo_url:      { default: "https://github.com/jogueber/gdc-apps-lakebase-capstone" }
+  git_branch:        { default: "t5" }
+
+targets:
+  dev:
+    default: true
+    mode: development
+    workspace:
+      host: https://fevm-test-jg.cloud.databricks.com
+  prod:
+    mode: production
+    workspace:
+      host: https://fevm-test-jg.cloud.databricks.com
+    variables:
+      git_branch: "main"

@@ -5,7 +5,13 @@ import type {
   CustomerMetrics,
   CustomerSummary,
   DashboardAnalytics,
+  GenieFollowUpOut,
+  GenieMessageOut,
+  GenieStartOut,
   Page,
+  RunStatus,
+  RunSummary,
+  RunTrigger,
 } from "./types";
 
 export class ApiError extends Error {
@@ -69,4 +75,25 @@ export const api = {
   getConfig: () => request<AppConfig>("/config"),
 
   getDashboardAnalytics: () => request<DashboardAnalytics>("/dashboard/analytics"),
+
+  genie: {
+    start: (content: string) =>
+      request<GenieStartOut>("/genie/conversations", {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }),
+    followUp: (cid: string, content: string) =>
+      request<GenieFollowUpOut>(`/genie/conversations/${cid}/messages`, {
+        method: "POST",
+        body: JSON.stringify({ content }),
+      }),
+    getMessage: (cid: string, mid: string) =>
+      request<GenieMessageOut>(`/genie/conversations/${cid}/messages/${mid}`),
+  },
+
+  jobs: {
+    runForwardEtl: () => request<RunTrigger>("/jobs/run-forward-etl", { method: "POST" }),
+    getRun: (runId: number) => request<RunStatus>(`/jobs/runs/${runId}`),
+    listRuns: () => request<RunSummary[]>("/jobs/runs"),
+  },
 };
